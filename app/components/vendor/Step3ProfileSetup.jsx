@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -13,6 +13,8 @@ import CustomAlert from '../CustomAlert';
 import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
+import useAutoSave from '../../../hooks/useAutoSave';
+import PersistentStorage from '../../../lib/storage/persistentStorage';
 
 const Step3ProfileSetup = ({ formData, setFormData, onNext, onBack }) => {
   const [fullName, setFullName] = useState(formData.fullName || '');
@@ -20,6 +22,67 @@ const Step3ProfileSetup = ({ formData, setFormData, onNext, onBack }) => {
   const [profilePhoto, setProfilePhoto] = useState(formData.profilePhoto || null);
   const [showAlert, setShowAlert] = useState(false);
   const [alertConfig, setAlertConfig] = useState({ title: '', message: '', type: 'error', buttons: [] });
+  const [hasLoadedSavedData, setHasLoadedSavedData] = useState(false);
+
+  // Current step form data for auto-save
+  const currentStepData = {
+    fullName,
+    idProof,
+    profilePhoto,
+    step: 3
+  };
+
+  // Auto-save hook
+  const { saveData, loadSavedData, clearSavedData } = useAutoSave(
+    currentStepData,
+    'step3_profile_setup',
+    {
+      interval: 5000, // Save every 5 seconds
+      onSave: (data) => {
+        console.log('[Step3] Auto-saved profile data');
+        // Also save to registration data with step tracking
+        PersistentStorage.saveRegistrationData({
+          ...formData,
+          ...data
+        }, 3, 8); // Step 3 of 8 total steps
+      },
+      onError: (error) => {
+        console.error('[Step3] Auto-save error:', error);
+      }
+    }
+  );
+
+  // Load saved data on component mount
+  useEffect(() => {
+    const loadPreviousData = async () => {
+      if (hasLoadedSavedData) return;
+      
+      try {
+        const savedData = await loadSavedData();
+        if (savedData && savedData.step === 3) {
+          console.log('[Step3] Loading saved profile data');
+          setFullName(savedData.fullName || '');
+          setIdProof(savedData.idProof || null);
+          setProfilePhoto(savedData.profilePhoto || null);
+          
+          // Show recovery notification
+          setAlertConfig({
+            title: 'Data Recovered',
+            message: 'Your previous profile information has been restored.',
+            type: 'success',
+            buttons: [{ text: 'OK', onPress: () => setShowAlert(false) }]
+          });
+          setShowAlert(true);
+        }
+        setHasLoadedSavedData(true);
+      } catch (error) {
+        console.error('[Step3] Error loading saved data:', error);
+        setHasLoadedSavedData(true);
+      }
+    };
+
+    loadPreviousData();
+  }, [loadSavedData, hasLoadedSavedData]);
 
   const validateFullName = (text) => {
     // Only allow letters, spaces, and common name characters
@@ -178,7 +241,7 @@ const Step3ProfileSetup = ({ formData, setFormData, onNext, onBack }) => {
     }
   };
 
-  const handleNext = () => {
+  const handleNext = async () => {
     if (!fullName.trim()) {
       showErrorAlert('Please enter your full name');
       return;
@@ -192,13 +255,34 @@ const Step3ProfileSetup = ({ formData, setFormData, onNext, onBack }) => {
       return;
     }
 
-    setFormData({
-      ...formData,
-      fullName,
-      idProof,
-      profilePhoto
-    });
-    onNext();
+    try {
+      // Force save current data before moving to next step
+      await saveData();
+      
+      // Update parent form data
+      setFormData({
+        ...formData,
+        fullName,
+        idProof,
+        profilePhoto
+      });
+      
+      // Clear this step's saved data since we're moving forward
+      await clearSavedData();
+      
+      console.log('[Step3] Moving to next step, cleared saved data');
+      onNext();
+    } catch (error) {
+      console.error('[Step3] Error during step transition:', error);
+      // Still proceed even if save/clear fails
+      setFormData({
+        ...formData,
+        fullName,
+        idProof,
+        profilePhoto
+      });
+      onNext();
+    }
   };
 
   const isFormValid = fullName.trim().length > 0 && idProof;

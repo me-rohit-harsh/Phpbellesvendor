@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,15 +7,19 @@ import {
   TouchableOpacity,
   Image,
   SafeAreaView,
+  ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import CustomAlert from '../CustomAlert';
+import { toggleVendorStatus, getVendorStatus } from '../../../lib/api';
 
 const Dashboard = ({ businessData }) => {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState('overview');
   const [isRestaurantOpen, setIsRestaurantOpen] = useState(true);
+  const [isToggling, setIsToggling] = useState(false);
+  const [isVerifying, setIsVerifying] = useState(true);
   
   const [showAlert, setShowAlert] = useState(false);
   const [alertConfig, setAlertConfig] = useState({
@@ -24,6 +28,67 @@ const Dashboard = ({ businessData }) => {
     type: 'info',
     buttons: []
   });
+
+  // Additional security check - verify vendor status when dashboard loads
+  useEffect(() => {
+    const verifyVendorStatus = async () => {
+      try {
+        const statusResponse = await getVendorStatus();
+        
+        // If vendor is not verified, redirect to home (which will show verification screen)
+        if (statusResponse && statusResponse.status !== 'verified') {
+          router.replace('/home');
+          return;
+        }
+        
+        setIsVerifying(false);
+      } catch (error) {
+        console.error('Error verifying vendor status:', error);
+        // On error, redirect to registration
+        router.replace('/vendor/register');
+      }
+    };
+
+    verifyVendorStatus();
+  }, []);
+
+  // Show loading while verifying status
+  if (isVerifying) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#FF6B35" />
+        <Text style={styles.loadingText}>Verifying access permissions...</Text>
+      </View>
+    );
+  }
+
+  const handleToggleStatus = async () => {
+    if (isToggling) return; // Prevent multiple calls
+    
+    setIsToggling(true);
+    try {
+      await toggleVendorStatus();
+      setIsRestaurantOpen(!isRestaurantOpen);
+      
+      setAlertConfig({
+        title: 'Status Updated',
+        message: `Your restaurant is now ${!isRestaurantOpen ? 'online' : 'offline'}`,
+        type: 'success',
+        buttons: [{ text: 'OK', onPress: () => setShowAlert(false) }]
+      });
+      setShowAlert(true);
+    } catch (error) {
+      setAlertConfig({
+        title: 'Error',
+        message: 'Failed to update status. Please try again.',
+        type: 'error',
+        buttons: [{ text: 'OK', onPress: () => setShowAlert(false) }]
+      });
+      setShowAlert(true);
+    } finally {
+      setIsToggling(false);
+    }
+  };
 
   const menuItems = [
     {
@@ -135,16 +200,27 @@ const Dashboard = ({ businessData }) => {
           </View>
           <View style={styles.headerRight}>
             <TouchableOpacity 
-              style={[styles.statusToggle, { backgroundColor: isRestaurantOpen ? '#EF4444' : '#10B981' }]}
-              onPress={() => setIsRestaurantOpen(!isRestaurantOpen)}
+              style={[
+                styles.statusToggle, 
+                { 
+                  backgroundColor: isRestaurantOpen ? '#EF4444' : '#10B981',
+                  opacity: isToggling ? 0.7 : 1
+                }
+              ]}
+              onPress={handleToggleStatus}
+              disabled={isToggling}
             >
-              <Ionicons 
-                name={isRestaurantOpen ? 'pause' : 'play'} 
-                size={16} 
-                color="white" 
-              />
+              {isToggling ? (
+                <ActivityIndicator size="small" color="white" />
+              ) : (
+                <Ionicons 
+                  name={isRestaurantOpen ? 'pause' : 'play'} 
+                  size={16} 
+                  color="white" 
+                />
+              )}
               <Text style={styles.statusToggleText}>
-                {isRestaurantOpen ? 'Offline' : 'Online'}
+                {isToggling ? 'Updating...' : (isRestaurantOpen ? 'Go Offline' : 'Go Online')}
               </Text>
             </TouchableOpacity>
             <TouchableOpacity 
@@ -281,6 +357,18 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F8F9FA',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#F8F9FA',
+  },
+  loadingText: {
+    fontSize: 16,
+    color: '#666',
+    fontFamily: 'MyFont-Regular',
+    marginTop: 16,
   },
   header: {
     backgroundColor: '#FFFFFF',

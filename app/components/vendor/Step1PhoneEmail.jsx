@@ -10,13 +10,18 @@ import {
   Platform,
   ScrollView,
 } from 'react-native';
+import { useRouter } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import CustomAlert from '../CustomAlert';
+import { requestOTP, APIError, isValidationError, formatValidationErrors, getVendorStatus } from '../../../lib/api';
 
 const Step1PhoneEmail = ({ formData, setFormData, onNext }) => {
+  const router = useRouter();
   const [phoneNumber, setPhoneNumber] = useState(formData.phoneNumber || '');
   const [email, setEmail] = useState(formData.email || '');
   const [showAlert, setShowAlert] = useState(false);
   const [alertConfig, setAlertConfig] = useState({});
+  const [isLoginMode, setIsLoginMode] = useState(false);
 
   // Helper functions for alerts
   const showErrorAlert = (message) => {
@@ -70,43 +75,78 @@ const Step1PhoneEmail = ({ formData, setFormData, onNext }) => {
     return emailRegex.test(email);
   };
 
-  const handleSendOTP = () => {
+  const handleSendOTP = async () => {
     if (phoneNumber.length !== 10) {
       showErrorAlert('Please enter a valid 10-digit phone number');
       return;
     }
     
-    if (email && !isValidEmail(email)) {
+    if (!email || !isValidEmail(email)) {
       showErrorAlert('Please enter a valid email address');
       return;
     }
     
-    // Generate a random 6-digit OTP for any phone number
-    const generatedOTP = Math.floor(100000 + Math.random() * 900000).toString();
-    
-    setFormData({
-      ...formData,
-      phoneNumber,
-      email,
-      generatedOTP,
-      isAuthorizedBusiness: true
-    });
-    
-    setAlertConfig({
-      title: 'OTP Sent',
-      message: `Your OTP is: ${generatedOTP}\n\nNote: In production, this would be sent via SMS.`,
-      type: 'success',
-      autoClose: true,
-      autoCloseDelay: 1500,
-      buttons: []
-    });
-    setShowAlert(true);
-    
-    // Quick navigation to OTP screen
-    setTimeout(() => {
+    try {
+      // Show loading state
+      setAlertConfig({
+        title: 'Checking Account',
+        message: 'Please wait while we verify your details...',
+        type: 'info',
+        buttons: []
+      });
+      setShowAlert(true);
+      
+      // First, try to request OTP (this will work for both new and existing users)
+      const response = await requestOTP({
+        phone: phoneNumber,
+        email: email,
+        role_id: "3"
+      });
+      
+      // Store the phone and email temporarily
+      await AsyncStorage.setItem('tempPhone', phoneNumber);
+      await AsyncStorage.setItem('tempEmail', email);
+      
+      setFormData({
+        ...formData,
+        phoneNumber,
+        email,
+        isAuthorizedBusiness: true,
+        isLoginMode: isLoginMode
+      });
+      
+      setAlertConfig({
+        title: 'OTP Sent',
+        message: 'OTP has been sent to your phone number and email address.',
+        type: 'success',
+        autoClose: true,
+        autoCloseDelay: 2000,
+        buttons: []
+      });
       setShowAlert(false);
-      onNext();
-    }, 1500);
+      
+      // Navigate to OTP screen
+      setTimeout(() => {
+        setShowAlert(false);
+        onNext();
+      }, 2000);
+      
+    } catch (error) {
+      console.error('OTP request error:', error);
+      
+      let errorMessage = 'Failed to send OTP. Please try again.';
+      
+      if (error instanceof APIError) {
+        if (isValidationError(error)) {
+          const validationErrors = formatValidationErrors(error.data);
+          errorMessage = Object.values(validationErrors).join('\n');
+        } else {
+          errorMessage = error.message;
+        }
+      }
+      
+      showErrorAlert(errorMessage);
+    }
   };
 
   return (

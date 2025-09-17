@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, SafeAreaView, StatusBar, Platform } from 'react-native';
 import ProgressBar from '../components/ProgressBar';
 import Step1PhoneEmail from '../components/vendor/Step1PhoneEmail';
@@ -9,22 +9,114 @@ import Step5GSTFSSAIDetails from '../components/vendor/Step5GSTFSSAIDetails';
 import Step6LocationDetails from '../components/vendor/Step6LocationDetails';
 import Step7Confirmation from '../components/vendor/Step7Confirmation';
 import Step8Success from '../components/vendor/Step8Success';
+import PersistentStorage from '../../lib/storage/persistentStorage';
+import { ToastManager } from '../components/NotificationToast';
 
 const VendorRegister = () => {
   const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState({});
+  const [recoveryData, setRecoveryData] = useState(null);
 
   const totalSteps = 8;
 
-  const handleNext = () => {
-    if (currentStep < totalSteps) {
-      setCurrentStep(currentStep + 1);
+  useEffect(() => {
+    checkForRecoverableData();
+  }, []);
+
+  const checkForRecoverableData = async () => {
+    try {
+      const data = await PersistentStorage.checkRecoverableData();
+      if (data.canRecover) {
+        setRecoveryData(data);
+        
+        // Show a more prominent notification with both restore and dismiss options
+        ToastManager.show(
+          'Previous registration data found. Would you like to restore it?',
+          'warning',
+          15000, // Show for 15 seconds to give user time to see it
+          'Restore',
+          () => handleDataRecovery(true)
+        );
+        
+        // Also show a second notification with dismiss option
+        setTimeout(() => {
+          if (recoveryData) { // Only show if data hasn't been recovered yet
+            ToastManager.show(
+              'Tap here to start fresh (this will clear saved data)',
+              'info',
+              10000,
+              'Start Fresh',
+              () => handleDataRecovery(false)
+            );
+          }
+        }, 2000);
+      }
+    } catch (error) {
+      console.error('Error checking recoverable data:', error);
     }
   };
 
-  const handleBack = () => {
+  const handleDataRecovery = async (shouldRecover) => {
+    try {
+      if (shouldRecover && recoveryData) {
+        // Recover form data
+        if (recoveryData.registrationData) {
+          setFormData(recoveryData.registrationData);
+        }
+        
+        // Recover current step from progress
+        if (recoveryData.progress && recoveryData.progress.currentStep) {
+          setCurrentStep(recoveryData.progress.currentStep);
+        }
+        
+        ToastManager.success('Previous data restored successfully');
+        console.log('Data recovered successfully');
+      } else {
+        // Clear all saved data if user chooses not to recover
+        await PersistentStorage.clearAllData();
+        console.log('Saved data cleared');
+      }
+    } catch (error) {
+      console.error('Error handling data recovery:', error);
+      ToastManager.error('Failed to restore data');
+    } finally {
+      setRecoveryData(null);
+    }
+  };
+
+  const handleNext = async () => {
+    if (currentStep < totalSteps) {
+      const newStep = currentStep + 1;
+      setCurrentStep(newStep);
+      
+      // Save progress
+      try {
+        await PersistentStorage.saveData('progress', {
+          currentStep: newStep,
+          totalSteps,
+          lastUpdated: Date.now()
+        });
+      } catch (error) {
+        console.error('Error saving progress:', error);
+      }
+    }
+  };
+
+  const handleBack = async () => {
     if (currentStep > 1) {
-      setCurrentStep(currentStep - 1);
+      const newStep = currentStep - 1;
+      setCurrentStep(newStep);
+      
+      // Save progress
+      try {
+        await PersistentStorage.saveData('progress', {
+          currentStep: newStep,
+          totalSteps,
+          lastUpdated: Date.now()
+        });
+      } catch (error) {
+        console.error('Error saving progress:', error);
+      }
     }
   };
 
@@ -107,6 +199,8 @@ const VendorRegister = () => {
         <View style={styles.content}>
           {renderStep()}
         </View>
+        
+
       </SafeAreaView>
     </>
   );

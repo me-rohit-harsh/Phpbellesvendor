@@ -8,12 +8,17 @@ import {
   Image,
   KeyboardAvoidingView,
   Platform,
+  ScrollView,
   Animated,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import CustomAlert from '../CustomAlert';
+import { verifyOTP, requestOTP, APIError, isValidationError, formatValidationErrors, getVendorStatus } from '../../../lib/api';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 
 const Step2OTPVerification = ({ formData, setFormData, onNext, onBack }) => {
+  const router = useRouter();
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [timer, setTimer] = useState(10);
   const [canResend, setCanResend] = useState(false);
@@ -78,9 +83,8 @@ const Step2OTPVerification = ({ formData, setFormData, onNext, onBack }) => {
     }
   };
 
-  const verifyOtp = (otpToVerify = null) => {
+  const verifyOtp = async (otpToVerify = null) => {
     const enteredOtp = otpToVerify || otp.join('');
-    const generatedOtp = formData.generatedOTP;
     
     if (enteredOtp.length !== 6) {
       setAlertConfig({
@@ -95,82 +99,208 @@ const Step2OTPVerification = ({ formData, setFormData, onNext, onBack }) => {
     
     setVerificationStatus('verifying');
     
-    // Simulate verification delay
-    setTimeout(() => {
-      if (enteredOtp === generatedOtp) {
-        setVerificationStatus('success');
-        setFormData({
-          ...formData,
-          otp: enteredOtp,
-          isVerified: true
-        });
-        setAlertConfig({
-          title: 'Success!',
-          message: 'OTP verified successfully!',
-          type: 'success',
-          autoClose: true,
-          autoCloseDelay: 1500,
-          buttons: []
-        });
-        setShowAlert(true);
-        setTimeout(() => {
-          setShowAlert(false);
-          onNext();
-        }, 1500);
-      } else {
-        setVerificationStatus('error');
-        // Shake animation for wrong OTP
-        Animated.sequence([
-          Animated.timing(shakeAnim, { toValue: 10, duration: 100, useNativeDriver: true }),
-          Animated.timing(shakeAnim, { toValue: -10, duration: 100, useNativeDriver: true }),
-          Animated.timing(shakeAnim, { toValue: 10, duration: 100, useNativeDriver: true }),
-          Animated.timing(shakeAnim, { toValue: 0, duration: 100, useNativeDriver: true }),
-        ]).start();
-        
-        setAlertConfig({
-          title: 'Invalid OTP',
-          message: 'The OTP you entered is incorrect. Please try again.',
-          type: 'error',
-          buttons: [{ text: 'OK', onPress: () => {
-            setShowAlert(false);
-            setVerificationStatus('idle');
-            // Clear OTP inputs
-            setOtp(['', '', '', '', '', '']);
-            inputRefs.current[0]?.focus();
-          }}]
-        });
-        setShowAlert(true);
-      }
-    }, 800);
-  };
-
-  const handleResendOTP = () => {
-    if (canResend) {
-      // Generate a new random 6-digit OTP
-      const newGeneratedOTP = Math.floor(100000 + Math.random() * 900000).toString();
+    try {
+      console.log('Verifying OTP:', enteredOtp);
       
-      setFormData({
-        ...formData,
-        generatedOTP: newGeneratedOTP
+      // Call API to verify OTP
+      const response = await verifyOTP({
+        phone: formData.phoneNumber,
+        email: formData.email,
+        otp: enteredOtp
       });
       
-      setTimer(10);
-      setCanResend(false);
-      setOtp(['', '', '', '', '', '']);
-      setVerificationStatus('idle');
+      console.log('OTP verification response:', response);
       
+      // Check if the response indicates success
+      if (response.success === false || response.error) {
+        // API returned an error response
+        throw new Error(response.message || response.error || 'Invalid OTP');
+      }
+      
+      // Check if we have a valid token
+      if (!response.token) {
+        throw new Error('Invalid OTP. No authentication token received.');
+      }
+      
+      // Store the token
+      await AsyncStorage.setItem('auth_token', response.token);
+      
+      // Update form data with token
+      setFormData({
+        ...formData,
+        authToken: response.token,
+        otp: enteredOtp,
+        isVerified: true
+      });
+      
+      console.log('OTP verified successfully, checking vendor status...');
+      
+      // Check vendor status after successful verification
+      try {
+        const vendorStatusResponse = await getVendorStatus();
+        
+        if (vendorStatusResponse && vendorStatusResponse.status) {
+          const { status, message } = vendorStatusResponse;
+          
+          // Route based on vendor status
+          if (status === 'verified') {
+            // User is verified, go to dashboard
+            setAlertConfig({
+              title: 'Welcome Back!',
+              message: message || 'Redirecting to dashboard...',
+              type: 'success',
+              autoClose: true,
+              autoCloseDelay: 1500,
+              buttons: []
+            });
+            setShowAlert(true);
+            
+            setTimeout(() => {
+              setShowAlert(false);
+              router.replace('/vendor/dashboard');
+            }, 1500);
+            return;
+          } else if (status === 'under_verification') {
+            // User is under verification
+            setAlertConfig({
+              title: 'Account Under Review',
+              message: message || 'Your application is being reviewed. Please wait for approval.',
+              type: 'info',
+              autoClose: true,
+              autoCloseDelay: 2000,
+              buttons: []
+            });
+            setShowAlert(true);
+            
+            setTimeout(() => {
+              setShowAlert(false);
+              router.replace('/vendor/under-verification');
+            }, 2000);
+            return;
+          } else if (status === 'no_vendor') {
+            // User needs to register as vendor, continue with registration flow
+            console.log('User needs to register as vendor, continuing with registration flow');
+          }
+        }
+      } catch (statusError) {
+        console.log('Could not fetch vendor status, continuing with registration flow');
+      }
+      
+      setVerificationStatus('success');
       setAlertConfig({
-        title: 'New OTP Sent',
-        message: `Your new OTP is: ${newGeneratedOTP}\n\nNote: In production, this would be sent via SMS.`,
+        title: 'Success!',
+        message: 'OTP verified successfully!',
         type: 'success',
         autoClose: true,
-        autoCloseDelay: 3000,
+        autoCloseDelay: 1500,
         buttons: []
       });
       setShowAlert(true);
       
-      // Focus first input
-      setTimeout(() => inputRefs.current[0]?.focus(), 100);
+      setTimeout(() => {
+        setShowAlert(false);
+        onNext();
+      }, 1500);
+      
+    } catch (error) {
+      console.error('OTP verification error:', error);
+      setVerificationStatus('error');
+      
+      // Shake animation for wrong OTP
+      Animated.sequence([
+        Animated.timing(shakeAnim, { toValue: 10, duration: 100, useNativeDriver: true }),
+        Animated.timing(shakeAnim, { toValue: -10, duration: 100, useNativeDriver: true }),
+        Animated.timing(shakeAnim, { toValue: 10, duration: 100, useNativeDriver: true }),
+        Animated.timing(shakeAnim, { toValue: 0, duration: 100, useNativeDriver: true }),
+      ]).start();
+      
+      let errorMessage = 'Invalid OTP. Please try again.';
+      
+      if (error instanceof APIError) {
+        if (isValidationError(error)) {
+          const validationErrors = formatValidationErrors(error.data);
+          errorMessage = Object.values(validationErrors).join('\n');
+        } else {
+          errorMessage = error.message;
+        }
+      }
+      
+      setAlertConfig({
+        title: 'Invalid OTP',
+        message: errorMessage,
+        type: 'error',
+        buttons: [{ text: 'OK', onPress: () => {
+          setShowAlert(false);
+          setVerificationStatus('idle');
+          // Clear OTP inputs
+          setOtp(['', '', '', '', '', '']);
+          inputRefs.current[0]?.focus();
+        }}]
+      });
+      setShowAlert(true);
+    }
+  };
+
+  const handleResendOTP = async () => {
+    if (canResend) {
+      try {
+        // Show loading state
+        setAlertConfig({
+          title: 'Resending OTP',
+          message: 'Please wait while we resend the OTP...',
+          type: 'info',
+          buttons: []
+        });
+        setShowAlert(true);
+        
+        // Call API to request new OTP
+        const response = await requestOTP({
+          phone: formData.phoneNumber,
+          email: formData.email,
+          role_id: "3"
+        });
+        
+        // Reset timer
+        setTimer(60);
+        setCanResend(false);
+        
+        // Clear current OTP inputs
+        setOtp(['', '', '', '', '', '']);
+        setVerificationStatus('idle');
+        inputRefs.current[0]?.focus();
+        
+        setAlertConfig({
+          title: 'OTP Resent',
+          message: 'A new OTP has been sent to your phone number and email address.',
+          type: 'success',
+          autoClose: true,
+          autoCloseDelay: 2000,
+          buttons: []
+        });
+        setShowAlert(true);
+        
+      } catch (error) {
+        console.error('Resend OTP error:', error);
+        
+        let errorMessage = 'Failed to resend OTP. Please try again.';
+        
+        if (error instanceof APIError) {
+          if (isValidationError(error)) {
+            const validationErrors = formatValidationErrors(error.data);
+            errorMessage = Object.values(validationErrors).join('\n');
+          } else {
+            errorMessage = error.message;
+          }
+        }
+        
+        setAlertConfig({
+          title: 'Error',
+          message: errorMessage,
+          type: 'error',
+          buttons: [{ text: 'OK', onPress: () => setShowAlert(false) }]
+        });
+        setShowAlert(true);
+      }
     }
   };
 

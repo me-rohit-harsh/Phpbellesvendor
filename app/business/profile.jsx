@@ -16,6 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+
 const ProfileManagement = () => {
   const router = useRouter();
   
@@ -26,6 +27,7 @@ const ProfileManagement = () => {
     type: 'info',
     buttons: []
   });
+  
   
   const [profileData, setProfileData] = useState({
     businessName: 'Gourmet Kitchen',

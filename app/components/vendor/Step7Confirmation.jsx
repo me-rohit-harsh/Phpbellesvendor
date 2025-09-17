@@ -2,10 +2,97 @@ import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import CustomAlert from '../CustomAlert';
+import { registerVendor, APIError, isValidationError, formatValidationErrors } from '../../../lib/api';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const Step7Confirmation = ({ onNext, onBack, formData, setFormData }) => {
   const [showAlert, setShowAlert] = useState(false);
   const [alertConfig, setAlertConfig] = useState({ title: '', message: '', type: 'info', buttons: [] });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const submitVendorRegistration = async () => {
+    setIsSubmitting(true);
+
+
+    
+    try {
+      // Ensure we have the auth token
+      const authToken = formData.authToken || await AsyncStorage.getItem('auth_token');
+    if (!authToken) {
+        throw new Error('Authentication token not found. Please verify your OTP again.');
+      }
+
+      // Map form data to API format
+      const vendorData = {
+        name: formData.fullName,
+        restaurant_name: formData.restaurantName,
+        vendor_type_id: formData.vendorTypeId || "1", // Default to 1 if not set
+        food_types: formData.selectedCuisineIds || ["1"], // Use cuisine IDs
+        description: formData.description || `${formData.restaurantName} - A great place to dine`,
+        gst_no: formData.gstNumber,
+        fassai_license_no: formData.fssaiLicense,
+        
+        // File uploads
+        id_proof: formData.idProof,
+        profile_photo: formData.profilePhoto,
+        logo: formData.logo,
+        banner_image: formData.bannerImage,
+        gst_certificate: formData.gstDocument,
+        shop_license: formData.fssaiDocument,
+      };
+
+      console.log('Submitting vendor registration:', vendorData);
+      const response = await registerVendor(vendorData);
+      
+      setIsSubmitting(false);
+      setAlertConfig({
+        title: 'Success!',
+        message: 'Your vendor registration has been submitted successfully! You will receive a confirmation email shortly.',
+        type: 'success',
+        buttons: [
+          {
+            text: 'Continue',
+            onPress: () => {
+              setShowAlert(false);
+              onNext();
+            },
+          },
+        ]
+      });
+      setShowAlert(true);
+      
+    } catch (error) {
+      console.error('Vendor registration error:', error);
+      setIsSubmitting(false);
+      
+      let errorMessage = 'Failed to submit your registration. Please try again.';
+      
+      if (error instanceof APIError) {
+        if (isValidationError(error)) {
+          const validationErrors = formatValidationErrors(error.data);
+          errorMessage = Object.values(validationErrors).join('\n');
+        } else {
+          errorMessage = error.message;
+        }
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      setAlertConfig({
+        title: 'Registration Failed',
+        message: errorMessage,
+        type: 'error',
+        buttons: [
+          {
+            text: 'OK',
+            onPress: () => setShowAlert(false),
+          },
+        ]
+      });
+      setShowAlert(true);
+    }
+  };
+
   const handleSubmit = () => {
     setAlertConfig({
       title: 'Confirm Submission',
@@ -21,9 +108,7 @@ const Step7Confirmation = ({ onNext, onBack, formData, setFormData }) => {
           text: 'Submit',
           onPress: () => {
             setShowAlert(false);
-            // Here you would typically send the data to your backend
-            console.log('Submitting form data:', formData);
-            onNext();
+            submitVendorRegistration();
           },
         },
       ]
@@ -175,8 +260,14 @@ const Step7Confirmation = ({ onNext, onBack, formData, setFormData }) => {
         <TouchableOpacity style={styles.backButton} onPress={onBack}>
           <Text style={styles.backButtonText}>Back</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.submitButton} onPress={handleSubmit}>
-          <Text style={styles.submitButtonText}>Submit</Text>
+        <TouchableOpacity 
+          style={[styles.submitButton, isSubmitting && styles.submitButtonDisabled]} 
+          onPress={handleSubmit}
+          disabled={isSubmitting}
+        >
+          <Text style={styles.submitButtonText}>
+            {isSubmitting ? 'Submitting...' : 'Submit'}
+          </Text>
         </TouchableOpacity>
       </View>
       
@@ -298,6 +389,9 @@ const styles = StyleSheet.create({
     paddingVertical: 15,
     borderRadius: 8,
     alignItems: 'center',
+  },
+  submitButtonDisabled: {
+    backgroundColor: '#ccc',
   },
   submitButtonText: {
     color: '#fff',

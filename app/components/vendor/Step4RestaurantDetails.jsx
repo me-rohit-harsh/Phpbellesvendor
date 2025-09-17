@@ -1,12 +1,14 @@
-import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import CustomAlert from '../CustomAlert';
+import { getVendorTypes, getFoodTypes } from '../../../lib/api/vendor';
 
 const Step4RestaurantDetails = ({ onNext, onBack, formData, setFormData }) => {
   const [restaurantName, setRestaurantName] = useState(formData.restaurantName || '');
   const [selectedCuisines, setSelectedCuisines] = useState(formData.selectedCuisines || []);
   const [vendorType, setVendorType] = useState(formData.vendorType || '');
+  const [vendorTypeId, setVendorTypeId] = useState(formData.vendorTypeId || '');
   const [showVendorDropdown, setShowVendorDropdown] = useState(false);
   
   const [showAlert, setShowAlert] = useState(false);
@@ -17,19 +19,89 @@ const Step4RestaurantDetails = ({ onNext, onBack, formData, setFormData }) => {
     buttons: []
   });
 
-  const cuisineTypes = [
-    'Chinese', 'North Indian', 'South Indian', 'Italian', 'Mexican', 'Others'
-  ];
+  // Dynamic data from API
+  const [cuisineTypes, setCuisineTypes] = useState([]);
+  const [vendorTypes, setVendorTypes] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const vendorTypes = [
-    'Select Vendor Type',
-    'Restaurant',
-    'Cloud Kitchen',
-    'Food Truck',
-    'Cafe',
-    'Bakery',
-    'Sweet Shop'
-  ];
+  // Fetch data from APIs
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        console.log('Starting to fetch vendor types and food types...');
+        
+        // Fetch vendor types and food types in parallel
+        const [vendorTypesData, foodTypesData] = await Promise.all([
+          getVendorTypes(),
+          getFoodTypes()
+        ]);
+
+        console.log('Received vendor types:', vendorTypesData);
+        console.log('Received food types:', foodTypesData);
+
+        // Handle vendor types response
+        if (vendorTypesData && Array.isArray(vendorTypesData.data)) {
+          setVendorTypes([{ id: null, name: 'Select Vendor Type', icon: '' }, ...vendorTypesData.data]);
+          console.log('Set vendor types successfully');
+        } else if (vendorTypesData && Array.isArray(vendorTypesData)) {
+          // If the response is directly an array
+          setVendorTypes([{ id: null, name: 'Select Vendor Type', icon: '' }, ...vendorTypesData]);
+          console.log('Set vendor types successfully (direct array)');
+        } else {
+          console.warn('Unexpected vendor types response format:', vendorTypesData);
+        }
+
+        // Handle food types response
+        if (foodTypesData && Array.isArray(foodTypesData.data)) {
+          setCuisineTypes(foodTypesData.data);
+          console.log('Set food types successfully');
+        } else if (foodTypesData && Array.isArray(foodTypesData)) {
+          // If the response is directly an array
+          setCuisineTypes(foodTypesData);
+          console.log('Set food types successfully (direct array)');
+        } else {
+          console.warn('Unexpected food types response format:', foodTypesData);
+        }
+
+      } catch (error) {
+        console.error('Error fetching data:', error);
+        console.error('Error details:', {
+          message: error.message,
+          code: error.code,
+          response: error.response?.data,
+          status: error.response?.status
+        });
+        
+        showValidationError('Network Error', 'Failed to load vendor and food types. Using offline data.');
+        
+        // Fallback to hardcoded data
+        console.log('Using fallback data for cuisine types and vendor types');
+        setCuisineTypes([
+          { id: 1, name: 'North Indian', icon: '🍛' },
+          { id: 2, name: 'South Indian', icon: '🍲' },
+          { id: 3, name: 'Chinese', icon: '🥢' },
+          { id: 4, name: 'Italian', icon: '🍕' },
+          { id: 6, name: 'Mexican', icon: '🌮' },
+          { id: 8, name: 'Others', icon: '🍽️' }
+        ]);
+        
+        setVendorTypes([
+          { id: null, name: 'Select Vendor Type', icon: '' },
+          { id: 1, name: 'Restaurant', icon: '🍽️' },
+          { id: 4, name: 'Cloud Kitchen', icon: '👨‍🍳' },
+          { id: 5, name: 'Food Truck', icon: '🚚' },
+          { id: 2, name: 'Cafe', icon: '☕' },
+          { id: 3, name: 'Bakery', icon: '🍞' }
+        ]);
+      } finally {
+        setLoading(false);
+        console.log('Finished loading vendor and food types');
+      }
+    };
+
+    fetchData();
+  }, []);
 
   const validateRestaurantName = (text) => {
     // Allow letters, numbers, spaces, and common business name characters
@@ -44,10 +116,11 @@ const Step4RestaurantDetails = ({ onNext, onBack, formData, setFormData }) => {
   };
 
   const toggleCuisine = (cuisine) => {
-    if (selectedCuisines.includes(cuisine)) {
-      setSelectedCuisines(selectedCuisines.filter(c => c !== cuisine));
+    const cuisineId = cuisine.id;
+    if (selectedCuisines.includes(cuisineId)) {
+      setSelectedCuisines(selectedCuisines.filter(c => c !== cuisineId));
     } else {
-      setSelectedCuisines([...selectedCuisines, cuisine]);
+      setSelectedCuisines([...selectedCuisines, cuisineId]);
     }
   };
 
@@ -83,7 +156,8 @@ const Step4RestaurantDetails = ({ onNext, onBack, formData, setFormData }) => {
       ...formData,
       restaurantName,
       cuisineTypes: selectedCuisines,
-      vendorType
+      vendorType,
+      vendorTypeId
     });
     onNext();
   };
@@ -101,25 +175,32 @@ const Step4RestaurantDetails = ({ onNext, onBack, formData, setFormData }) => {
         />
 
         <Text style={styles.label}>Type of Foods/Cuisine you Sell</Text>
-        <View style={styles.cuisineContainer}>
-          {cuisineTypes.map((cuisine) => (
-            <TouchableOpacity
-              key={cuisine}
-              style={[
-                styles.cuisineButton,
-                selectedCuisines.includes(cuisine) && styles.selectedCuisine
-              ]}
-              onPress={() => toggleCuisine(cuisine)}
-            >
-              <Text style={[
-                styles.cuisineText,
-                selectedCuisines.includes(cuisine) && styles.selectedCuisineText
-              ]}>
-                {cuisine}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
+        {loading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="small" color="#020A66" />
+            <Text style={styles.loadingText}>Loading cuisine types...</Text>
+          </View>
+        ) : (
+          <View style={styles.cuisineContainer}>
+            {cuisineTypes.map((cuisine) => (
+              <TouchableOpacity
+                key={cuisine.id}
+                style={[
+                  styles.cuisineButton,
+                  selectedCuisines.includes(cuisine.id) && styles.selectedCuisine
+                ]}
+                onPress={() => toggleCuisine(cuisine)}
+              >
+                <Text style={[
+                  styles.cuisineText,
+                  selectedCuisines.includes(cuisine.id) && styles.selectedCuisineText
+                ]}>
+                  {cuisine.icon} {cuisine.name}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
 
         <Text style={styles.label}>Type of Vendor</Text>
         <TouchableOpacity
@@ -139,7 +220,7 @@ const Step4RestaurantDetails = ({ onNext, onBack, formData, setFormData }) => {
           />
         </TouchableOpacity>
 
-        {showVendorDropdown && (
+        {showVendorDropdown && !loading && (
             <View style={styles.dropdownContainer}>
               <ScrollView 
                 style={styles.dropdownList}
@@ -151,19 +232,20 @@ const Step4RestaurantDetails = ({ onNext, onBack, formData, setFormData }) => {
               >
                 {vendorTypes.slice(1).map((type, index) => (
                   <TouchableOpacity
-                    key={index}
+                    key={type.id}
                     style={[
                       styles.dropdownItem,
                       index === vendorTypes.slice(1).length - 1 && styles.lastDropdownItem
                     ]}
                     onPress={() => {
-                      setVendorType(type);
+                      setVendorType(type.name);
+                      setVendorTypeId(type.id);
                       setShowVendorDropdown(false);
                     }}
                     activeOpacity={0.7}
                   >
-                    <Text style={styles.dropdownItemText}>{type}</Text>
-                    {vendorType === type && (
+                    <Text style={styles.dropdownItemText}>{type.icon} {type.name}</Text>
+                    {vendorType === type.name && (
                       <Ionicons name="checkmark" size={20} color="#020A66" />
                     )}
                   </TouchableOpacity>
@@ -342,6 +424,17 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
+  },
+  loadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 20,
+    gap: 10,
+  },
+  loadingText: {
+    fontSize: 14,
+    color: '#666',
   },
 });
 
