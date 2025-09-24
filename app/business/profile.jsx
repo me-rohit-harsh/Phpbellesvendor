@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,12 +9,14 @@ import {
   Image,
   SafeAreaView,
   Switch,
+  ActivityIndicator,
 } from 'react-native';
 import CustomAlert from '../components/CustomAlert';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getCompleteProfile, updateCompleteProfile } from '../../lib/api/vendor';
 
 
 const ProfileManagement = () => {
@@ -70,6 +72,75 @@ const ProfileManagement = () => {
   });
 
   const [isEditing, setIsEditing] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Fetch profile data on component mount
+  useEffect(() => {
+    fetchProfileData();
+  }, []);
+
+  const fetchProfileData = async () => {
+    try {
+      setIsLoading(true);
+      const response = await getCompleteProfile();
+      
+      if (response.data && response.data.success) {
+        const profileInfo = response.data.data;
+        
+        // Map API response to local state structure
+        setProfileData(prev => ({
+          ...prev,
+          businessName: profileInfo.restaurant_name || prev.businessName,
+          ownerName: profileInfo.name || prev.ownerName,
+          email: profileInfo.email || prev.email,
+          phone: profileInfo.phone || prev.phone,
+          address: profileInfo.address || prev.address,
+          description: profileInfo.description || prev.description,
+          cuisineType: profileInfo.cuisine_type || prev.cuisineType,
+          openTime: profileInfo.open_time || prev.openTime,
+          closeTime: profileInfo.close_time || prev.closeTime,
+          deliveryRadius: profileInfo.delivery_radius || prev.deliveryRadius,
+          minimumOrder: profileInfo.minimum_order || prev.minimumOrder,
+          deliveryFee: profileInfo.delivery_fee || prev.deliveryFee,
+          profileImage: profileInfo.profile_photo || prev.profileImage,
+          coverImage: profileInfo.banner_image || prev.coverImage,
+          // Service options
+          isVegetarian: profileInfo.is_vegetarian || prev.isVegetarian,
+          hasDelivery: profileInfo.has_delivery || prev.hasDelivery,
+          hasTakeaway: profileInfo.has_takeaway || prev.hasTakeaway,
+          acceptsOnlinePayment: profileInfo.accepts_online_payment || prev.acceptsOnlinePayment,
+          hasDineIn: profileInfo.has_dine_in || prev.hasDineIn,
+          hasOutdoorSeating: profileInfo.has_outdoor_seating || prev.hasOutdoorSeating,
+          hasParking: profileInfo.has_parking || prev.hasParking,
+          hasWiFi: profileInfo.has_wifi || prev.hasWiFi,
+          hasAirConditioning: profileInfo.has_air_conditioning || prev.hasAirConditioning,
+          hasLiveMusic: profileInfo.has_live_music || prev.hasLiveMusic,
+          hasKidsArea: profileInfo.has_kids_area || prev.hasKidsArea,
+          hasPetFriendly: profileInfo.has_pet_friendly || prev.hasPetFriendly,
+          hasWheelchairAccess: profileInfo.has_wheelchair_access || prev.hasWheelchairAccess,
+          hasValet: profileInfo.has_valet || prev.hasValet,
+          hasBuffet: profileInfo.has_buffet || prev.hasBuffet,
+          hasBarService: profileInfo.has_bar_service || prev.hasBarService,
+          hasCateringService: profileInfo.has_catering_service || prev.hasCateringService,
+          hasPrivateDining: profileInfo.has_private_dining || prev.hasPrivateDining,
+          acceptsCash: profileInfo.accepts_cash || prev.acceptsCash,
+          acceptsCards: profileInfo.accepts_cards || prev.acceptsCards,
+          acceptsUPI: profileInfo.accepts_upi || prev.acceptsUPI,
+        }));
+      }
+    } catch (error) {
+      console.error('Error fetching profile data:', error);
+      setAlertConfig({
+        title: 'Error',
+        message: 'Failed to load profile data. Please try again.',
+        type: 'error',
+        buttons: [{ text: 'OK', onPress: () => setShowAlert(false) }]
+      });
+      setShowAlert(true);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const showSuccessMessage = (title, message) => {
     setAlertConfig({
@@ -81,10 +152,70 @@ const ProfileManagement = () => {
     setShowAlert(true);
   };
 
-  const handleSave = () => {
-    // Here you would typically save to your backend
-    showSuccessMessage('Success', 'Profile updated successfully!');
-    setIsEditing(false);
+  const handleSave = async () => {
+    try {
+      setIsLoading(true);
+      
+      // Map local state to API format
+      const profileUpdateData = {
+        restaurant_name: profileData.businessName,
+        name: profileData.ownerName,
+        email: profileData.email,
+        phone: profileData.phone,
+        address: profileData.address,
+        description: profileData.description,
+        cuisine_type: profileData.cuisineType,
+        open_time: profileData.openTime,
+        close_time: profileData.closeTime,
+        delivery_radius: profileData.deliveryRadius,
+        minimum_order: profileData.minimumOrder,
+        delivery_fee: profileData.deliveryFee,
+        profile_photo: profileData.profileImage,
+        banner_image: profileData.coverImage,
+        // Service options
+        is_vegetarian: profileData.isVegetarian,
+        has_delivery: profileData.hasDelivery,
+        has_takeaway: profileData.hasTakeaway,
+        accepts_online_payment: profileData.acceptsOnlinePayment,
+        has_dine_in: profileData.hasDineIn,
+        has_outdoor_seating: profileData.hasOutdoorSeating,
+        has_parking: profileData.hasParking,
+        has_wifi: profileData.hasWiFi,
+        has_air_conditioning: profileData.hasAirConditioning,
+        has_live_music: profileData.hasLiveMusic,
+        has_kids_area: profileData.hasKidsArea,
+        has_pet_friendly: profileData.hasPetFriendly,
+        has_wheelchair_access: profileData.hasWheelchairAccess,
+        has_valet: profileData.hasValet,
+        has_buffet: profileData.hasBuffet,
+        has_bar_service: profileData.hasBarService,
+        has_catering_service: profileData.hasCateringService,
+        has_private_dining: profileData.hasPrivateDining,
+        accepts_cash: profileData.acceptsCash,
+        accepts_cards: profileData.acceptsCards,
+        accepts_upi: profileData.acceptsUPI,
+      };
+
+      const response = await updateCompleteProfile(profileUpdateData);
+      
+      if (response.data && response.data.success) {
+        showSuccessMessage('Success', 'Profile updated successfully!');
+        setIsEditing(false);
+      } else {
+        throw new Error(response.data?.message || 'Failed to update profile');
+      }
+    } catch (error) {
+      console.error('Error updating profile:', error);
+      setAlertConfig({
+        title: 'Error',
+        message: 'Failed to update profile. Please try again.',
+        type: 'error',
+        buttons: [{ text: 'OK', onPress: () => setShowAlert(false) }]
+      });
+      setShowAlert(true);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const pickImage = async (type) => {
@@ -140,6 +271,16 @@ const ProfileManagement = () => {
 
   return (
     <SafeAreaView style={styles.container}>
+      {/* Loading Overlay */}
+      {isLoading && (
+        <View style={styles.loadingOverlay}>
+          <ActivityIndicator size="large" color="#020A66" />
+          <Text style={styles.loadingText}>
+            {isEditing ? 'Saving profile...' : 'Loading profile...'}
+          </Text>
+        </View>
+      )}
+      
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
@@ -648,6 +789,23 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: 'MyFont-Medium',
     color: '#EF4444',
+  },
+  loadingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1000,
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    fontFamily: 'MyFont-Medium',
+    color: '#020A66',
   },
 });
 

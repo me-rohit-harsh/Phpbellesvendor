@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
-  StyleSheet,
+ StyleSheet,
   ScrollView,
   TouchableOpacity,
   TextInput,
@@ -11,12 +11,16 @@ import {
   Modal,
 } from 'react-native';
 import CustomAlert from '../components/CustomAlert';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+
 import * as ImagePicker from 'expo-image-picker';
+import { getMenuItems, getMenuItemsByCategory, getMenuCategories, createMenuItem, updateMenuItem, toggleMenuItemStock } from '../../lib/api/vendor';
+import { testConnectivity } from '../../lib/api/api';
 
 const FoodItemsManagement = () => {
   const router = useRouter();
+  const { categoryId } = useLocalSearchParams();
   const [searchQuery, setSearchQuery] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -59,83 +63,329 @@ const FoodItemsManagement = () => {
     setShowAlert(true);
   };
   
-  // Mock data for food items with order tracking
-  const [foodItems, setFoodItems] = useState([
-    {
-      id: 1,
-      name: 'Chicken Biryani',
-      category: 'Main Course',
-      price: 299,
-      description: 'Aromatic basmati rice with tender chicken pieces',
-      image: null,
-      inStock: true,
-      quantity: 25,
-      totalOrders: 156,
-      weeklyOrders: 23
-    },
-    {
-      id: 2,
-      name: 'Paneer Butter Masala',
-      category: 'Main Course',
-      price: 249,
-      description: 'Creamy tomato-based curry with cottage cheese',
-      image: null,
-      inStock: true,
-      quantity: 15,
-      totalOrders: 89,
-      weeklyOrders: 12
-    },
-    {
-      id: 3,
-      name: 'Gulab Jamun',
-      category: 'Dessert',
-      price: 89,
-      description: 'Sweet milk dumplings in sugar syrup',
-      image: null,
-      inStock: false,
-      quantity: 0,
-      totalOrders: 67,
-      weeklyOrders: 8
-    },
-    {
-      id: 4,
-      name: 'Masala Dosa',
-      category: 'Main Course',
-      price: 149,
-      description: 'Crispy crepe with spiced potato filling',
-      image: null,
-      inStock: true,
-      quantity: 30,
-      totalOrders: 203,
-      weeklyOrders: 31
-    },
-    {
-      id: 5,
-      name: 'Mango Lassi',
-      category: 'Beverages',
-      price: 79,
-      description: 'Refreshing yogurt drink with mango',
-      image: null,
-      inStock: true,
-      quantity: 20,
-      totalOrders: 134,
-      weeklyOrders: 19
-    }
-  ]);
+  // State for food items loaded from API
+  const [foodItems, setFoodItems] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   const [newItem, setNewItem] = useState({
     name: '',
     category: 'Main Course',
     price: '',
+    discount_price: '',
     description: '',
     image: null,
     quantity: '',
+    type: 'veg', // veg or non-veg
+    preparation_time: '15', // in minutes
+    calories: '',
+    tags: [],
+    sort_order: '1',
+    is_available: true,
     totalOrders: 0,
     weeklyOrders: 0
   });
 
-  // Dynamic categories - in a real app, this would come from a shared state or API
-  const [categories, setCategories] = useState(['All', 'Appetizer', 'Main Course', 'Dessert', 'Beverages', 'Snacks']);
+  // Dynamic categories loaded from API - store as objects with id and name
+  const [categories, setCategories] = useState([{ id: 'all', name: 'All' }]); // Start with 'All' as default
+  const [categoryObjects, setCategoryObjects] = useState([]); // Store full category objects for API calls
+  
+  // Load menu items from API
+  const loadMenuItems = async (selectedCategoryId = null, categoriesData = null) => {
+    try {
+      setLoading(true);
+      let response;
+      
+      // Use provided categories or fall back to state
+      const availableCategories = categoriesData || categoryObjects;
+      
+      console.log('🔄 Loading menu items...');
+      console.log('🔄 Selected category ID:', selectedCategoryId);
+      console.log('🔄 Current selected category:', selectedCategory);
+      
+      // Determine which API call to make
+      if (selectedCategoryId && selectedCategoryId !== 'all') {
+        // Load items for specific category ID
+        console.log(`🔄 Loading menu items for category ID ${selectedCategoryId} from API...`);
+        response = await getMenuItemsByCategory(selectedCategoryId);
+      } else {
+        // Load all items (for 'All' category or no specific category)
+        console.log('📋 Fetching all menu items...');
+        response = await getMenuItems();
+      }
+      
+      console.log('📦 Raw menu items response:', response);
+      
+      // Handle different response structures
+      let menuItems = [];
+      if (response && response.data) {
+        // If response.data is an array, use it directly
+        if (Array.isArray(response.data)) {
+          menuItems = response.data;
+          console.log('✅ Using response.data structure');
+        }
+        // If response.data has a data property (nested), use that
+        else if (response.data.data && Array.isArray(response.data.data)) {
+          menuItems = response.data.data;
+          console.log('✅ Using response.data.data structure');
+        }
+        // If response.data has items property, use that
+        else if (response.data.items && Array.isArray(response.data.items)) {
+          menuItems = response.data.items;
+        }
+        // If response.data is an object with menu_items property
+        else if (response.data.menu_items && Array.isArray(response.data.menu_items)) {
+          menuItems = response.data.menu_items;
+        }
+      } else if (response) {
+        menuItems = Array.isArray(response) ? response : [response];
+        console.log('✅ Using direct response structure');
+      }
+      
+      console.log('🍽️ Processed menu items count:', menuItems.length);
+      console.log('🍽️ Processed menu items:', menuItems);
+      
+      // Normalize menu items to ensure consistent category and stock fields for filtering
+      const normalizedItems = menuItems.map(item => {
+        // Get category name from various possible fields with better priority
+        let categoryName = 'Uncategorized';
+        
+        // First try to map using menu_category_id and loaded categories
+        if (item.menu_category_id && availableCategories.length > 0) {
+          const matchingCategory = availableCategories.find(cat => 
+            (cat.id || cat.category_id) === item.menu_category_id
+          );
+          if (matchingCategory) {
+            categoryName = matchingCategory.name || matchingCategory.category_name || matchingCategory.title;
+          }
+        }
+        // Fallback to other possible fields
+        else if (item.menu_category?.name) {
+          categoryName = item.menu_category.name;
+        } else if (item.menu_category?.category_name) {
+          categoryName = item.menu_category.category_name;
+        } else if (item.category_name) {
+          categoryName = item.category_name;
+        } else if (item.category) {
+          categoryName = item.category;
+        }
+        
+        // Normalize stock status - use is_available as the primary field
+        const stockStatus = item.is_available !== undefined ? item.is_available : 
+                           item.inStock !== undefined ? item.inStock :
+                           item.in_stock !== undefined ? item.in_stock :
+                           item.stock !== undefined ? item.stock :
+                           item.available !== undefined ? item.available :
+                           true; // Default to true if no stock field found
+        
+        return {
+          ...item,
+          // Ensure we have a consistent category field for filtering
+          category: categoryName,
+          // Ensure we have consistent stock fields
+          is_available: stockStatus,
+          inStock: stockStatus, // Keep for backward compatibility
+          // Also preserve original category info for debugging
+          originalCategory: item.category,
+          categoryName: item.category_name,
+          menuCategory: item.menu_category
+        };
+      });
+      
+      console.log('🔄 Normalized items with category info:', normalizedItems.map(item => ({
+        id: item.id,
+        name: item.name,
+        category: item.category,
+        originalCategory: item.originalCategory,
+        categoryName: item.categoryName
+      })));
+      
+      // Debug each item's image field
+      normalizedItems.forEach((item, index) => {
+        console.log(`🖼️ Item ${index + 1} (${item.name || 'Unknown'}):`, {
+          id: item.id,
+          name: item.name,
+          category: item.category,
+          price: item.price,
+          asset_url: item.asset_url,
+          asset_id: item.asset_id,
+          image: item.image,
+          image_url: item.image_url,
+          photo: item.photo,
+          picture: item.picture,
+          thumbnail: item.thumbnail,
+          allFields: Object.keys(item)
+        });
+      });
+      
+      setFoodItems(normalizedItems);
+      console.log('✅ Food items state updated with', normalizedItems.length, 'items');
+      
+      if (normalizedItems.length === 0) {
+        console.log('⚠️ No menu items found in response');
+      }
+    } catch (error) {
+      console.error('❌ Error loading menu items:', error);
+      console.error('❌ Error details:', error.response?.data || error.message);
+      showErrorAlert('Error', 'Failed to load menu items. Please try again.');
+      setFoodItems([]); // Set empty array on error
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Load categories from API
+  const loadCategories = async () => {
+    // Default fallback categories
+    const fallbackCategories = [
+      { id: 'all', name: 'All' },
+      { id: 'appetizer', name: 'Appetizer' },
+      { id: 'main', name: 'Main Course' },
+      { id: 'dessert', name: 'Dessert' },
+      { id: 'beverages', name: 'Beverages' },
+      { id: 'snacks', name: 'Snacks' },
+    ];
+
+    try {
+      console.log('🔄 Loading categories from API...');
+      const response = await getMenuCategories();
+      console.log('📦 Categories API Response:', response);
+      
+      // Handle different response structures
+      let categoryList = [];
+      if (response) {
+        // If response is an array directly
+        if (Array.isArray(response)) {
+          categoryList = response;
+        }
+        // If response has data property
+        else if (response.data) {
+          // If response.data is an array, use it directly
+          if (Array.isArray(response.data)) {
+            categoryList = response.data;
+          }
+          // If response.data has a data property (nested), use that
+          else if (response.data.data && Array.isArray(response.data.data)) {
+            categoryList = response.data.data;
+          }
+          // If response.data has categories property, use that
+          else if (response.data.categories && Array.isArray(response.data.categories)) {
+            categoryList = response.data.categories;
+          }
+        }
+        // If response has categories property directly
+        else if (response.categories && Array.isArray(response.categories)) {
+          categoryList = response.categories;
+        }
+      }
+      
+      console.log('🏷️ Processed categories from API:', categoryList);
+      
+      // If we got categories from API, use them
+      if (categoryList && categoryList.length > 0) {
+        // Store full category objects for API calls (keep original structure)
+        setCategoryObjects(categoryList);
+        
+        // Create display categories with id and name, add 'All' at the beginning and 'Uncategorized' at the end
+        const displayCategories = categoryList.map(cat => ({
+          id: cat.id || cat.category_id,
+          name: cat.name || cat.category_name || cat.title || cat
+        }));
+        const allCategories = [
+          { id: 'all', name: 'All' }, 
+          ...displayCategories,
+          { id: 'uncategorized', name: 'Uncategorized' }
+        ];
+        
+        console.log('📋 Final categories list from API:', allCategories);
+        console.log('📋 Category objects for API calls:', categoryList);
+        setCategories(allCategories);
+        
+        // Set default category for new items (first non-'All' category)
+        const defaultCategory = allCategories.length > 1 ? allCategories[1].name : 'Main Course';
+        setNewItem(prev => ({ ...prev, category: defaultCategory }));
+        
+        return categoryList; // Return the loaded categories
+      } else {
+        // No categories from API, use fallback
+        console.log('⚠️ No categories from API, using fallback categories');
+        setCategories(fallbackCategories);
+        setNewItem(prev => ({ ...prev, category: 'Main Course' }));
+        return []; // Return empty array for fallback
+      }
+    } catch (error) {
+      console.error('❌ Error loading categories:', error);
+      // Always show fallback categories on error
+      console.log('🔄 Using fallback categories due to error');
+      setCategories(fallbackCategories);
+      setNewItem(prev => ({ ...prev, category: 'Main Course' }));
+      return []; // Return empty array on error
+    }
+  };
+
+  // Helper function to get default category
+  const getDefaultCategory = () => {
+    return categories.length > 1 ? categories[1].name : 'Main Course';
+  };
+
+  // Handle category selection
+  const handleCategorySelect = async (category) => {
+    console.log('🎯 Category selected:', category);
+    setSelectedCategory(category.name);
+    
+    // Load items based on selected category
+    if (category.id === 'all' || category.name === 'All') {
+      console.log('📋 Loading all items...');
+      await loadMenuItems(); // Load all items
+    } else {
+      console.log('🏷️ Loading items for category:', category.name, 'ID:', category.id);
+      // Load items for the specific category
+      await loadMenuItems(category.id);
+    }
+  };
+
+  // Handle connectivity test
+  const handleTestConnectivity = async () => {
+    console.log('🔍 Testing connectivity...');
+    setAlert({
+      visible: true,
+      title: 'Testing Connectivity',
+      message: 'Running network diagnostics...',
+      type: 'info',
+      onConfirm: () => setAlert({ visible: false })
+    });
+
+    try {
+      const result = await testConnectivity();
+      console.log('✅ Connectivity test result:', result);
+      
+      setAlert({
+        visible: true,
+        title: 'Connectivity Test Results',
+        message: `✅ API Connection: ${result.success ? 'SUCCESS' : 'FAILED'}\n📡 Response Time: ${result.responseTime}ms\n🌐 Base URL: ${result.baseURL}\n📱 Platform: ${result.platform}${result.error ? `\n❌ Error: ${result.error}` : ''}`,
+        type: result.success ? 'success' : 'error',
+        onConfirm: () => setAlert({ visible: false })
+      });
+    } catch (error) {
+      console.error('❌ Connectivity test failed:', error);
+      
+      setAlert({
+        visible: true,
+        title: 'Connectivity Test Failed',
+        message: `❌ Network test failed: ${error.message}\n\nTroubleshooting:\n• Check internet connection\n• Verify API server status\n• Try rebuilding the app\n• Check network security settings`,
+        type: 'error',
+        onConfirm: () => setAlert({ visible: false })
+      });
+    }
+  };
+
+  // Load data on component mount and when category changes
+  useEffect(() => {
+    const loadData = async () => {
+      const loadedCategories = await loadCategories(); // Load categories first
+      await loadMenuItems(null, loadedCategories); // Then load menu items with the loaded categories
+    };
+    loadData();
+  }, [categoryId]);
   
   // Function to get most ordered items
   const getMostOrderedItems = (limit = 5) => {
@@ -152,34 +402,213 @@ const FoodItemsManagement = () => {
   };
 
   const filteredItems = foodItems.filter(item => {
-    const matchesSearch = searchQuery === '' || item.name.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesCategory = selectedCategory === 'All' || item.category === selectedCategory;
+    const matchesSearch = searchQuery === '' || 
+                         (item.name && item.name.toLowerCase().includes(searchQuery.toLowerCase()));
+    
+    // Use the normalized category field for filtering
+    const itemCategory = item.category || 'Uncategorized';
+    
+    // Category matching logic
+    let matchesCategory = false;
+    
+    if (selectedCategory === 'All' || !selectedCategory) {
+      // Show all items when 'All' is selected
+      matchesCategory = true;
+    } else if (selectedCategory === 'Uncategorized') {
+      // Show only uncategorized items when 'Uncategorized' is selected
+      matchesCategory = itemCategory === 'Uncategorized';
+    } else {
+      // For specific categories, try exact match first, then case-insensitive
+      matchesCategory = itemCategory === selectedCategory || 
+                       itemCategory.toLowerCase() === selectedCategory.toLowerCase();
+    }
+    
+    console.log('🔍 Filtering item:', {
+      itemName: item.name,
+      itemCategory: itemCategory,
+      selectedCategory: selectedCategory,
+      matchesSearch: matchesSearch,
+      matchesCategory: matchesCategory
+    });
+    
     return matchesSearch && matchesCategory;
   });
 
-  const handleAddItem = () => {
-    if (!newItem.name || !newItem.price || !newItem.quantity) {
-      showErrorAlert('Error', 'Please fill in all required fields');
+  const handleAddItem = async () => {
+    // Enhanced validation with specific error messages
+    if (!newItem.name?.trim()) {
+      showErrorAlert('Validation Error', 'Item name is required');
       return;
     }
 
-    const item = {
-      id: Date.now(),
-      name: newItem.name,
-      category: newItem.category,
-      price: parseFloat(newItem.price),
-      description: newItem.description,
-      image: newItem.image,
-      inStock: parseInt(newItem.quantity) > 0,
-      quantity: parseInt(newItem.quantity),
-      totalOrders: 0,
-      weeklyOrders: 0
-    };
+    if (!newItem.price || isNaN(parseFloat(newItem.price)) || parseFloat(newItem.price) <= 0) {
+      showErrorAlert('Validation Error', 'Please enter a valid price greater than 0');
+      return;
+    }
 
-    setFoodItems([...foodItems, item]);
-    setNewItem({ name: '', category: 'Main Course', price: '', description: '', image: null, quantity: '', totalOrders: 0, weeklyOrders: 0 });
-    setShowAddModal(false);
-    showSuccessAlert('Success', 'Food item added successfully!');
+    if (!newItem.quantity || isNaN(parseInt(newItem.quantity)) || parseInt(newItem.quantity) <= 0) {
+      showErrorAlert('Validation Error', 'Please enter a valid quantity greater than 0');
+      return;
+    }
+
+    if (!newItem.category) {
+      showErrorAlert('Validation Error', 'Please select a category');
+      return;
+    }
+
+    if (!newItem.description?.trim()) {
+      showErrorAlert('Validation Error', 'Please enter a description for the item');
+      return;
+    }
+
+    // Check if image is selected before proceeding
+    if (!getImageUri(newItem.image)) {
+      showErrorAlert('Validation Error', 'Please select an image before saving');
+      return;
+    }
+
+    // Validate discount price if provided
+    if (newItem.discount_price && (isNaN(parseFloat(newItem.discount_price)) || parseFloat(newItem.discount_price) < 0)) {
+      showErrorAlert('Validation Error', 'Please enter a valid discount price');
+      return;
+    }
+
+    // Validate preparation time if provided
+    if (newItem.preparation_time && (isNaN(parseInt(newItem.preparation_time)) || parseInt(newItem.preparation_time) < 0)) {
+      showErrorAlert('Validation Error', 'Please enter a valid preparation time in minutes');
+      return;
+    }
+    
+    // Log image information for debugging
+    console.log('🖼️ Image data type:', typeof newItem.image);
+    console.log('🖼️ Image value:', newItem.image);
+
+    try {
+      // Debug logging for category selection
+      console.log('🏷️ Selected category name:', newItem.category);
+      console.log('🏷️ Available category objects:', categoryObjects);
+      console.log('🏷️ Category objects count:', categoryObjects.length);
+      
+      // Find the category object to get the category_id
+      const selectedCategoryObj = categoryObjects.find(cat => 
+        (cat.name || cat.category_name) === newItem.category
+      );
+
+      console.log('🏷️ Found category object:', selectedCategoryObj);
+
+      if (!selectedCategoryObj || !selectedCategoryObj.id) {
+        console.error('❌ Category not found or missing ID');
+        console.error('❌ Selected category name:', newItem.category);
+        console.error('❌ Available categories:', categoryObjects.map(cat => ({ name: cat.name || cat.category_name, id: cat.id })));
+        showErrorAlert('Category Error', `Category "${newItem.category}" not found. Please select a valid category.`);
+        return;
+      }
+      
+      // Create the menu item with the image URL
+      console.log('📦 Creating menu item...');
+      const imageUrl = newItem.image; // Use the image URL directly
+      const itemData = {
+        menu_category_id: selectedCategoryObj.id.toString(), // API expects string ID
+        name: newItem.name,
+        description: newItem.description || '',
+        price: parseFloat(newItem.price).toFixed(2), // API expects decimal format
+        discount_price: newItem.discount_price ? parseFloat(newItem.discount_price).toFixed(2) : parseFloat(newItem.price).toFixed(2), // Use discount price or fallback to price
+        is_available: newItem.is_available,
+        type: newItem.type || 'veg', // Use form value or default to veg
+        tags: Array.isArray(newItem.tags) ? newItem.tags : (typeof newItem.tags === 'string' ? newItem.tags.split(',').map(tag => tag.trim()).filter(tag => tag) : []), // Handle both array and string formats
+        preparation_time: newItem.preparation_time || '15', // Use form value or default
+        calories: newItem.calories || '0', // Use form value or default to 0
+        sort_order: newItem.sort_order || '1', // Use form value or default sort order
+        stock: parseInt(newItem.quantity).toString(), // API expects string
+        image: imageUrl // Use the uploaded image URL
+      };
+
+      // Log the payload before sending to API
+      console.log("📦 Payload for createMenuItem:", itemData);
+      console.log('🏷️ Available categories:', categoryObjects);
+      console.log('🎯 Selected category object:', selectedCategoryObj);
+      console.log('🆔 Using menu_category_id:', itemData.menu_category_id);
+      console.log('🖼️ Final image URL:', imageUrl);
+      
+      console.log('Starting API call to createMenuItem...');
+      const response = await createMenuItem(itemData);
+      console.log('✅ API call completed successfully');
+      console.log('✅ Full response object:', response);
+      console.log('✅ Response status:', response?.status);
+      console.log('✅ Response data:', response?.data);
+      console.log('✅ Response type:', typeof response);
+      
+      // Validate that we actually got a successful response
+      if (!response) {
+        throw new Error('❌ No response received from API');
+      }
+      
+      // Check if response indicates success
+      const isSuccess = response.success || 
+                       (response.data && response.data.success) || 
+                       (response.status && response.status >= 200 && response.status < 300) ||
+                       response.message?.includes('success');
+      
+      console.log('🔍 Success validation:', isSuccess);
+      
+      if (!isSuccess) {
+        console.error('❌ API response indicates failure:', response);
+        throw new Error(response.message || response.error || 'Failed to create menu item');
+      }
+      
+      // Reload menu items to get the updated list from server
+      console.log('🔄 Reloading menu items...');
+      console.log('🔄 Current foodItems count before reload:', foodItems.length);
+      const reloadStartTime = Date.now();
+      await loadMenuItems();
+      const reloadEndTime = Date.now();
+      console.log('🔄 Reload completed in', reloadEndTime - reloadStartTime, 'ms');
+      console.log('🔄 New foodItems count after reload:', foodItems.length);
+      
+      // Only show success if everything completed without errors
+      setNewItem({ name: '', category: getDefaultCategory(), price: '', discount_price: '', description: '', image: null, quantity: '', type: 'veg', preparation_time: '15', calories: '', tags: [], sort_order: '1', is_available: true, totalOrders: 0, weeklyOrders: 0 });
+      setShowAddModal(false);
+      
+      console.log('🎉 Food item creation process completed successfully');
+      showSuccessAlert('Success', 'Food item added successfully!');
+    } catch (error) {
+      console.error('❌ Error adding food item:', error);
+      console.error('❌ Error details:', error.response?.data || error.message);
+      console.error('❌ Error stack:', error.stack);
+      
+      let errorMessage = 'An unexpected error occurred. Please try again.';
+      let errorTitle = 'Error';
+      
+      // Handle specific error types
+      if (error.message?.includes('toString')) {
+        errorTitle = 'Data Processing Error';
+        errorMessage = 'There was an issue processing the item data. Please check all fields and try again.';
+      } else if (error.message?.includes('Network')) {
+        errorTitle = 'Network Error';
+        errorMessage = 'Unable to connect to the server. Please check your internet connection and try again.';
+      } else if (error.message?.includes('Server error') || error.message?.includes('HTML')) {
+        errorTitle = 'Server Error';
+        errorMessage = 'The server is experiencing issues. Please try again later or contact support if the problem persists.';
+      } else if (error.response?.status === 422) {
+        errorTitle = 'Validation Error';
+        errorMessage = error.response?.data?.message || 'The submitted data is invalid. Please check all fields and try again.';
+      } else if (error.response?.status === 401) {
+        errorTitle = 'Authentication Error';
+        errorMessage = 'Your session has expired. Please log in again.';
+      } else if (error.response?.status === 403) {
+        errorTitle = 'Permission Error';
+        errorMessage = 'You do not have permission to perform this action.';
+      } else if (error.response?.status >= 500) {
+        errorTitle = 'Server Error';
+        errorMessage = 'The server is experiencing issues. Please try again later.';
+      } else if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      showErrorAlert(errorTitle, errorMessage);
+    }
   };
 
   const handleEditItem = (item) => {
@@ -190,53 +619,217 @@ const FoodItemsManagement = () => {
       price: item.price.toString(),
       description: item.description,
       image: item.image,
-      quantity: item.quantity.toString(),
-      totalOrders: item.totalOrders,
-      weeklyOrders: item.weeklyOrders
+      quantity: item.quantity ? item.quantity.toString() : '',
+      type: item.type || 'veg',
+      preparation_time: item.preparation_time ? item.preparation_time.toString() : '',
+      calories: item.calories ? item.calories.toString() : '',
+      totalOrders: item.totalOrders || 0,
+      weeklyOrders: item.weeklyOrders || 0,
+      discount_price: item.discount_price ? item.discount_price.toString() : '',
+      tags: Array.isArray(item.tags) ? item.tags : [],
+      sort_order: item.sort_order ? item.sort_order.toString() : '',
+      is_available: item.is_available !== undefined ? item.is_available : true
     });
     setShowEditModal(true);
   };
 
-  const handleUpdateItem = () => {
-    if (!newItem.name || !newItem.price || !newItem.quantity) {
-      showErrorAlert('Error', 'Please fill in all required fields');
+  const handleUpdateItem = async () => {
+    // Enhanced validation with specific error messages
+    if (!newItem.name?.trim()) {
+      showErrorAlert('Validation Error', 'Please enter the item name');
       return;
     }
 
-    const updatedItem = {
-      ...editingItem,
-      name: newItem.name,
-      category: newItem.category,
-      price: parseFloat(newItem.price),
-      description: newItem.description,
-      image: newItem.image,
-      inStock: parseInt(newItem.quantity) > 0,
-      quantity: parseInt(newItem.quantity)
-    };
+    if (!newItem.price || isNaN(parseFloat(newItem.price)) || parseFloat(newItem.price) <= 0) {
+      showErrorAlert('Validation Error', 'Please enter a valid price greater than 0');
+      return;
+    }
 
-    setFoodItems(foodItems.map(item => 
-      item.id === editingItem.id ? updatedItem : item
-    ));
-    setNewItem({ name: '', category: 'Main Course', price: '', description: '', image: null, quantity: '' });
-    setEditingItem(null);
-    setShowEditModal(false);
-    showSuccessAlert('Success', 'Food item updated successfully!');
-  };
+    if (!newItem.quantity || isNaN(parseInt(newItem.quantity)) || parseInt(newItem.quantity) <= 0) {
+      showErrorAlert('Validation Error', 'Please enter a valid quantity greater than 0');
+      return;
+    }
 
-  const handleDeleteItem = (id) => {
-    showConfirmAlert(
-      'Delete Item',
-      'Are you sure you want to delete this item?',
-      () => {
-        setFoodItems(foodItems.filter(item => item.id !== id));
+    if (!newItem.category) {
+      showErrorAlert('Validation Error', 'Please select a category');
+      return;
+    }
+
+    if (!newItem.description?.trim()) {
+      showErrorAlert('Validation Error', 'Please enter a description for the item');
+      return;
+    }
+
+    // Validate discount price if provided
+    if (newItem.discount_price && (isNaN(parseFloat(newItem.discount_price)) || parseFloat(newItem.discount_price) < 0)) {
+      showErrorAlert('Validation Error', 'Please enter a valid discount price');
+      return;
+    }
+
+    // Validate preparation time if provided
+    if (newItem.preparation_time && (isNaN(parseInt(newItem.preparation_time)) || parseInt(newItem.preparation_time) < 0)) {
+      showErrorAlert('Validation Error', 'Please enter a valid preparation time in minutes');
+      return;
+    }
+
+    try {
+      // Find the category object to get the category_id
+      const selectedCategoryObj = categoryObjects.find(cat => 
+        (cat.name || cat.category_name) === newItem.category
+      );
+
+      if (!selectedCategoryObj || !selectedCategoryObj.id) {
+        showErrorAlert('Error', `Category "${newItem.category}" not found. Please select a valid category.`);
+        return;
       }
-    );
+
+      // Pass the image file object directly (not URL)
+      const itemData = {
+        menu_category_id: selectedCategoryObj ? selectedCategoryObj.id.toString() : null, // API expects string ID
+        name: newItem.name,
+        description: newItem.description || '',
+        price: parseFloat(newItem.price).toFixed(2), // API expects decimal format
+        discount_price: newItem.discount_price ? parseFloat(newItem.discount_price).toFixed(2) : parseFloat(newItem.price).toFixed(2), // Use discount price or fallback to price
+        is_available: newItem.is_available,
+        type: newItem.type || 'veg', // Use form value or default to veg
+        tags: Array.isArray(newItem.tags) ? newItem.tags : (typeof newItem.tags === 'string' ? newItem.tags.split(',').map(tag => tag.trim()).filter(tag => tag) : []), // Handle both array and string formats
+        preparation_time: newItem.preparation_time || '15', // Use form value or default
+        calories: newItem.calories || '0', // Use form value or default to 0
+        sort_order: newItem.sort_order || '1', // Use form value or default sort order
+        stock: parseInt(newItem.quantity).toString(), // API expects string
+        in_stock: parseInt(newItem.quantity) > 0
+      };
+
+      // Only include image file if a new image was uploaded
+      if (newItem.image) {
+        itemData.image = newItem.image;
+        console.log('🖼️ Image file object for update:', newItem.image);
+      }
+
+      console.log('🔄 Updating menu item:', editingItem.id, itemData);
+      const response = await updateMenuItem(editingItem.id, itemData);
+      
+      // Reload menu items to get the updated list from server
+      await loadMenuItems();
+      
+      setNewItem({ name: '', category: getDefaultCategory(), price: '', discount_price: '', description: '', image: null, quantity: '', type: 'veg', preparation_time: '15', calories: '', tags: [], sort_order: '1', is_available: true });
+      setEditingItem(null);
+      setShowEditModal(false);
+      showSuccessAlert('Success', 'Food item updated successfully!');
+    } catch (error) {
+      console.error('❌ Error updating food item:', error);
+      console.error('❌ Error details:', error.response?.data || error.message);
+      
+      let errorMessage = 'Please try again.';
+      
+      // Check if it's a server error (HTML response)
+      if (error.message?.includes('Server error') || error.message?.includes('HTML')) {
+        errorMessage = 'Server error detected. Please check your internet connection and try again. If the problem persists, contact support.';
+      } else if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      showErrorAlert('Error', `Failed to update food item: ${errorMessage}`);
+    }
   };
 
-  const toggleStock = (id) => {
-    setFoodItems(foodItems.map(item => 
-      item.id === id ? { ...item, inStock: !item.inStock } : item
-    ));
+
+
+  const toggleStock = async (id) => {
+    try {
+      console.log(`🔄 Toggling stock for item ${id}...`);
+      
+      // Find the current item to get its current stock status
+      const currentItem = foodItems.find(item => item.id === id);
+      if (!currentItem) {
+        console.error('Item not found for stock toggle');
+        setAlertConfig({
+          title: 'Error',
+          message: 'Item not found. Please refresh and try again.',
+          type: 'error',
+          buttons: [{ text: 'OK', onPress: () => setShowAlert(false) }]
+        });
+        setShowAlert(true);
+        return;
+      }
+      
+      console.log(`Current stock status: ${currentItem.is_available || currentItem.inStock}`);
+      
+      // Call the toggle stock API
+      const response = await toggleMenuItemStock(id);
+      console.log('Stock toggle API response:', response);
+      console.log('Response data:', response.data);
+      console.log('Response data keys:', Object.keys(response.data || {}));
+      
+      // Check for successful response and extract the new stock status
+      if (response && response.data) {
+        // Try multiple possible field names for stock status
+        const newStockStatus = response.data.is_available ?? 
+                              response.data.inStock ?? 
+                              response.data.in_stock ?? 
+                              response.data.stock ?? 
+                              response.data.available;
+        const message = response.data.message;
+        
+        console.log('Extracted stock status:', newStockStatus);
+        console.log('Available fields in response:', response.data);
+        
+        // If stock status is still undefined, toggle the current state as fallback
+        const currentStatus = currentItem.is_available !== undefined ? currentItem.is_available : currentItem.inStock;
+        const finalStockStatus = newStockStatus !== undefined ? newStockStatus : !currentStatus;
+        console.log('Final stock status to use:', finalStockStatus);
+        
+        // Update local state with the new stock status from the API
+        setFoodItems(prevItems => prevItems.map(item => 
+          item.id === id ? { 
+            ...item, 
+            is_available: finalStockStatus,
+            inStock: finalStockStatus // Keep both for compatibility
+          } : item
+        ));
+        
+        // Show success message from the API
+        setAlertConfig({
+          title: 'Success',
+          message: message || `Item marked as ${finalStockStatus ? 'in stock' : 'out of stock'}`,
+          type: 'success',
+          buttons: [{ text: 'OK', onPress: () => setShowAlert(false) }]
+        });
+        setShowAlert(true);
+        
+        console.log(`✅ Stock status updated successfully for item ${id}: ${finalStockStatus}`);
+      } else {
+        throw new Error('Invalid response from server');
+      }
+    } catch (error) {
+      console.error('Error toggling stock status:', error);
+      
+      // More detailed error message
+      let errorMessage = 'Failed to update stock status. Please try again.';
+      if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      setAlertConfig({
+        title: 'Error',
+        message: errorMessage,
+        type: 'error',
+        buttons: [{ text: 'OK', onPress: () => setShowAlert(false) }]
+      });
+      setShowAlert(true);
+    }
+  };
+
+  // Helper function to get image URI from either file object or URL string
+  const getImageUri = (image) => {
+    if (!image) return null;
+    if (typeof image === 'string') return image;
+    if (typeof image === 'object' && image.uri) return image.uri;
+    return null;
   };
 
   const pickImage = async () => {
@@ -247,22 +840,55 @@ const FoodItemsManagement = () => {
     });
 
     if (!result.canceled) {
-      setNewItem({ ...newItem, image: result.assets[0].uri });
+      const asset = result.assets[0];
+      // Create a proper file object for FormData
+      const imageFile = {
+        uri: asset.uri,
+        type: asset.type || 'image/jpeg',
+        name: asset.fileName || `menu_item_${Date.now()}.jpg`,
+      };
+      console.log('📸 Selected image file:', imageFile);
+      setNewItem({ ...newItem, image: imageFile });
     }
   };
 
-  const FoodItemCard = ({ item }) => (
-    <View style={styles.itemCard}>
-      <View style={styles.itemHeader}>
-        <View style={styles.itemImageContainer}>
-          {item.image ? (
-            <Image source={{ uri: item.image }} style={styles.itemImage} />
-          ) : (
-            <View style={styles.placeholderImage}>
-              <Ionicons name="image-outline" size={24} color="#9CA3AF" />
-            </View>
-          )}
-        </View>
+  const FoodItemCard = ({ item }) => {
+    // Helper function to get image URL from different possible field names
+    const getImageUrl = (item) => {
+      // Priority order: asset_url (new API response), then fallback to other fields
+      const possibleImageFields = ['asset_url', 'image_url', 'image', 'photo', 'picture', 'thumbnail'];
+      for (const field of possibleImageFields) {
+        if (item[field] && typeof item[field] === 'string' && item[field].trim() !== '') {
+          return item[field].trim();
+        }
+      }
+      return null;
+    };
+
+    const imageUrl = getImageUrl(item);
+    console.log(`🖼️ Image URL for ${item.name}:`, imageUrl);
+
+    return (
+      <View style={styles.itemCard}>
+        <View style={styles.itemHeader}>
+          <View style={styles.itemImageContainer}>
+            {imageUrl ? (
+              <Image 
+                source={{ uri: imageUrl }} 
+                style={styles.itemImage}
+                onError={(error) => {
+                  console.log(`❌ Failed to load image for ${item.name}:`, error.nativeEvent.error);
+                }}
+                onLoad={() => {
+                  console.log(`✅ Successfully loaded image for ${item.name}`);
+                }}
+              />
+            ) : (
+              <View style={styles.placeholderImage}>
+                <Text style={styles.placeholderText}>No Image</Text>
+              </View>
+            )}
+          </View>
         <View style={styles.itemInfo}>
           <Text style={styles.itemName}>{item.name}</Text>
           <Text style={styles.itemCategory}>{item.category}</Text>
@@ -271,21 +897,21 @@ const FoodItemsManagement = () => {
             {item.description}
           </Text>
           <View style={styles.stockInfo}>
-            <View style={[styles.stockIndicator, { backgroundColor: item.inStock ? '#10B981' : '#EF4444' }]} />
+            <View style={[styles.stockIndicator, { backgroundColor: (item.is_available !== undefined ? item.is_available : item.inStock) ? '#10B981' : '#EF4444' }]} />
             <Text style={styles.stockText}>
-              {item.inStock ? `Stock: ${item.quantity}` : 'Out of Stock'}
+              {(item.is_available !== undefined ? item.is_available : item.inStock) ? `Stock: ${item.quantity || 'Available'}` : 'Out of Stock'}
             </Text>
           </View>
         </View>
         <View style={styles.itemActions}>
           <TouchableOpacity
-            style={[styles.actionButton, { backgroundColor: item.inStock ? '#EF4444' : '#10B981' }]}
+            style={[styles.actionButton, { backgroundColor: (item.is_available !== undefined ? item.is_available : item.inStock) ? '#EF4444' : '#10B981' }]}
             onPress={() => toggleStock(item.id)}
           >
             <Ionicons 
-              name={item.inStock ? 'close-circle' : 'checkmark-circle'} 
-              size={14} 
-              color="white" 
+              name={(item.is_available !== undefined ? item.is_available : item.inStock) ? 'remove-circle' : 'add-circle'} 
+              size={16} 
+              color="#FFFFFF" 
             />
           </TouchableOpacity>
           
@@ -293,40 +919,45 @@ const FoodItemsManagement = () => {
             style={[styles.actionButton, { backgroundColor: '#3B82F6' }]}
             onPress={() => handleEditItem(item)}
           >
-            <Ionicons name="pencil" size={14} color="white" />
+            <Ionicons name="pencil" size={16} color="#FFFFFF" />
           </TouchableOpacity>
           
-          <TouchableOpacity
-            style={[styles.actionButton, { backgroundColor: '#EF4444' }]}
-            onPress={() => handleDeleteItem(item.id)}
-          >
-            <Ionicons name="trash" size={14} color="white" />
-          </TouchableOpacity>
+
         </View>
       </View>
     </View>
-  );
+    );
+  };
 
   return (
     <SafeAreaView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color="#020A66" />
+          <Text style={styles.backButtonText}>← Back</Text>
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Food Items</Text>
-        <TouchableOpacity 
-          style={styles.addButton}
-          onPress={() => setShowAddModal(true)}
-        >
-          <Ionicons name="add" size={24} color="white" />
-        </TouchableOpacity>
+        <Text style={styles.headerTitle}>
+          {categoryId ? `Category ${categoryId} Items` : 'Food Items'}
+        </Text>
+        <View style={styles.headerActions}>
+          <TouchableOpacity 
+            style={styles.testButton}
+            onPress={handleTestConnectivity}
+          >
+            <Ionicons name="wifi" size={20} color="#020A66" />
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={styles.addButton}
+            onPress={() => setShowAddModal(true)}
+          >
+            <Ionicons name="add" size={24} color="#FFFFFF" />
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Search and Filter */}
       <View style={styles.searchContainer}>
         <View style={styles.searchBox}>
-          <Ionicons name="search" size={20} color="#9CA3AF" />
           <TextInput
             style={styles.searchInput}
             placeholder="Search food items..."
@@ -344,18 +975,18 @@ const FoodItemsManagement = () => {
       >
         {categories.map((category) => (
           <TouchableOpacity
-            key={category}
+            key={category.id || category.name}
             style={[
               styles.categoryButton,
-              selectedCategory === category && styles.selectedCategoryButton
+              selectedCategory === category.name && styles.selectedCategoryButton
             ]}
-            onPress={() => setSelectedCategory(category)}
+            onPress={() => handleCategorySelect(category)}
           >
             <Text style={[
               styles.categoryText,
-              selectedCategory === category && styles.selectedCategoryText
+              selectedCategory === category.name && styles.selectedCategoryText
             ]}>
-              {category}
+              {category.name}
             </Text>
           </TouchableOpacity>
         ))}
@@ -363,13 +994,17 @@ const FoodItemsManagement = () => {
 
       {/* Food Items List */}
       <ScrollView style={styles.itemsList} showsVerticalScrollIndicator={false}>
-        {filteredItems.length > 0 ? (
+        {loading ? (
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyStateText}>Loading menu items...</Text>
+            <Text style={styles.emptyStateSubtext}>Please wait while we fetch your food items</Text>
+          </View>
+        ) : filteredItems.length > 0 ? (
           filteredItems.map((item) => (
             <FoodItemCard key={item.id} item={item} />
           ))
         ) : (
           <View style={styles.emptyState}>
-            <Ionicons name="restaurant-outline" size={64} color="#9CA3AF" />
             <Text style={styles.emptyStateText}>No food items found</Text>
             <Text style={styles.emptyStateSubtext}>Add your first food item to get started</Text>
           </View>
@@ -396,11 +1031,11 @@ const FoodItemsManagement = () => {
           <ScrollView style={styles.modalContent}>
             {/* Image Picker */}
             <TouchableOpacity style={styles.imagePicker} onPress={pickImage}>
-              {newItem.image ? (
-                <Image source={{ uri: newItem.image }} style={styles.selectedImage} />
+              {getImageUri(newItem.image) ? (
+                <Image source={{ uri: getImageUri(newItem.image) }} style={styles.selectedImage} />
               ) : (
                 <View style={styles.imagePickerPlaceholder}>
-                  <Ionicons name="camera" size={40} color="#9CA3AF" />
+                  <Ionicons name="camera" size={32} color="#6B7280" />
                   <Text style={styles.imagePickerText}>Add Photo</Text>
                 </View>
               )}
@@ -423,18 +1058,18 @@ const FoodItemsManagement = () => {
                 <View style={styles.categorySelector}>
                   {categories.slice(1).map((category) => (
                     <TouchableOpacity
-                      key={category}
+                      key={category.id || category.name}
                       style={[
                         styles.categorySelectorButton,
-                        newItem.category === category && styles.selectedCategorySelectorButton
+                        newItem.category === category.name && styles.selectedCategorySelectorButton
                       ]}
-                      onPress={() => setNewItem({ ...newItem, category })}
+                      onPress={() => setNewItem({ ...newItem, category: category.name })}
                     >
                       <Text style={[
                         styles.categorySelectorText,
-                        newItem.category === category && styles.selectedCategorySelectorText
+                        newItem.category === category.name && styles.selectedCategorySelectorText
                       ]}>
-                        {category}
+                        {category.name}
                       </Text>
                     </TouchableOpacity>
                   ))}
@@ -449,18 +1084,64 @@ const FoodItemsManagement = () => {
                   style={styles.input}
                   placeholder="0"
                   value={newItem.price}
-                  onChangeText={(text) => setNewItem({ ...newItem, price: text })}
+                  onChangeText={(text) => {
+                    // Only allow numbers and decimal point
+                    const numericText = text.replace(/[^0-9.]/g, '');
+                    // Ensure only one decimal point
+                    const parts = numericText.split('.');
+                    const validText = parts.length > 2 ? parts[0] + '.' + parts.slice(1).join('') : numericText;
+                    setNewItem({ ...newItem, price: validText });
+                  }}
                   keyboardType="numeric"
                 />
               </View>
               
               <View style={[styles.formGroup, { flex: 1, marginLeft: 10 }]}>
+                <Text style={styles.label}>Discount Price (₹)</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Optional"
+                  value={newItem.discount_price}
+                  onChangeText={(text) => {
+                    // Only allow numbers and decimal point
+                    const numericText = text.replace(/[^0-9.]/g, '');
+                    // Ensure only one decimal point
+                    const parts = numericText.split('.');
+                    const validText = parts.length > 2 ? parts[0] + '.' + parts.slice(1).join('') : numericText;
+                    setNewItem({ ...newItem, discount_price: validText });
+                  }}
+                  keyboardType="numeric"
+                />
+              </View>
+            </View>
+
+            <View style={styles.formRow}>
+              <View style={[styles.formGroup, { flex: 1, marginRight: 10 }]}>
                 <Text style={styles.label}>Quantity *</Text>
                 <TextInput
                   style={styles.input}
                   placeholder="0"
                   value={newItem.quantity}
-                  onChangeText={(text) => setNewItem({ ...newItem, quantity: text })}
+                  onChangeText={(text) => {
+                    // Only allow whole numbers
+                    const numericText = text.replace(/[^0-9]/g, '');
+                    setNewItem({ ...newItem, quantity: numericText });
+                  }}
+                  keyboardType="numeric"
+                />
+              </View>
+              
+              <View style={[styles.formGroup, { flex: 1, marginLeft: 10 }]}>
+                <Text style={styles.label}>Sort Order</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="1"
+                  value={newItem.sort_order}
+                  onChangeText={(text) => {
+                    // Only allow whole numbers
+                    const numericText = text.replace(/[^0-9]/g, '');
+                    setNewItem({ ...newItem, sort_order: numericText });
+                  }}
                   keyboardType="numeric"
                 />
               </View>
@@ -476,6 +1157,123 @@ const FoodItemsManagement = () => {
                 multiline
                 numberOfLines={3}
               />
+            </View>
+
+
+
+            <View style={styles.formGroup}>
+              <Text style={styles.label}>Tags (comma separated)</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="e.g. spicy, best-seller"
+                value={Array.isArray(newItem.tags) ? newItem.tags.join(', ') : ''}
+                onChangeText={(text) => {
+                  const tagsArray = text.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0);
+                  setNewItem({ ...newItem, tags: tagsArray });
+                }}
+              />
+            </View>
+
+            <View style={styles.formGroup}>
+              <Text style={styles.label}>Availability</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                <View style={styles.categorySelector}>
+                  <TouchableOpacity
+                    style={[
+                      styles.categorySelectorButton,
+                      newItem.is_available === true && styles.selectedCategorySelectorButton
+                    ]}
+                    onPress={() => setNewItem({ ...newItem, is_available: true })}
+                  >
+                    <Text style={[
+                      styles.categorySelectorText,
+                      newItem.is_available === true && styles.selectedCategorySelectorText
+                    ]}>
+                      Available
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[
+                      styles.categorySelectorButton,
+                      newItem.is_available === false && styles.selectedCategorySelectorButton
+                    ]}
+                    onPress={() => setNewItem({ ...newItem, is_available: false })}
+                  >
+                    <Text style={[
+                      styles.categorySelectorText,
+                      newItem.is_available === false && styles.selectedCategorySelectorText
+                    ]}>
+                      Unavailable
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </ScrollView>
+            </View>
+
+            <View style={styles.formGroup}>
+              <Text style={styles.label}>Food Type</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                <View style={styles.categorySelector}>
+                  <TouchableOpacity
+                    style={[
+                      styles.categorySelectorButton,
+                      newItem.type === 'veg' && styles.selectedCategorySelectorButton
+                    ]}
+                    onPress={() => setNewItem({ ...newItem, type: 'veg' })}
+                  >
+                    <Text style={[
+                      styles.categorySelectorText,
+                      newItem.type === 'veg' && styles.selectedCategorySelectorText
+                    ]}>
+                      Vegetarian
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[
+                      styles.categorySelectorButton,
+                      newItem.type === 'non-veg' && styles.selectedCategorySelectorButton
+                    ]}
+                    onPress={() => setNewItem({ ...newItem, type: 'non-veg' })}
+                  >
+                    <Text style={[
+                      styles.categorySelectorText,
+                      newItem.type === 'non-veg' && styles.selectedCategorySelectorText
+                    ]}>
+                      Non-Vegetarian
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </ScrollView>
+            </View>
+
+            <View style={styles.formRow}>
+              <View style={[styles.formGroup, { flex: 1, marginRight: 10 }]}>
+                <Text style={styles.label}>Prep Time (min)</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="15"
+                  value={newItem.preparation_time}
+                  onChangeText={(text) => {
+                    const numericText = text.replace(/[^0-9]/g, '');
+                    setNewItem({ ...newItem, preparation_time: numericText });
+                  }}
+                  keyboardType="numeric"
+                />
+              </View>
+              
+              <View style={[styles.formGroup, { flex: 1, marginLeft: 10 }]}>
+                <Text style={styles.label}>Calories</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Optional"
+                  value={newItem.calories}
+                  onChangeText={(text) => {
+                    const numericText = text.replace(/[^0-9]/g, '');
+                    setNewItem({ ...newItem, calories: numericText });
+                  }}
+                  keyboardType="numeric"
+                />
+              </View>
             </View>
           </ScrollView>
         </SafeAreaView>
@@ -501,11 +1299,11 @@ const FoodItemsManagement = () => {
           <ScrollView style={styles.modalContent}>
             {/* Image Picker */}
             <TouchableOpacity style={styles.imagePicker} onPress={pickImage}>
-              {newItem.image ? (
-                <Image source={{ uri: newItem.image }} style={styles.selectedImage} />
+              {getImageUri(newItem.image) ? (
+                <Image source={{ uri: getImageUri(newItem.image) }} style={styles.selectedImage} />
               ) : (
                 <View style={styles.imagePickerPlaceholder}>
-                  <Ionicons name="camera" size={40} color="#9CA3AF" />
+                  <Ionicons name="camera" size={32} color="#6B7280" />
                   <Text style={styles.imagePickerText}>Add Photo</Text>
                 </View>
               )}
@@ -528,21 +1326,57 @@ const FoodItemsManagement = () => {
                 <View style={styles.categorySelector}>
                   {categories.slice(1).map((category) => (
                     <TouchableOpacity
-                      key={category}
+                      key={category.id || category.name}
                       style={[
                         styles.categorySelectorButton,
-                        newItem.category === category && styles.selectedCategorySelectorButton
+                        newItem.category === category.name && styles.selectedCategorySelectorButton
                       ]}
-                      onPress={() => setNewItem({ ...newItem, category })}
+                      onPress={() => setNewItem({ ...newItem, category: category.name })}
                     >
                       <Text style={[
                         styles.categorySelectorText,
-                        newItem.category === category && styles.selectedCategorySelectorText
+                        newItem.category === category.name && styles.selectedCategorySelectorText
                       ]}>
-                        {category}
+                        {category.name}
                       </Text>
                     </TouchableOpacity>
                   ))}
+                </View>
+              </ScrollView>
+            </View>
+
+            <View style={styles.formGroup}>
+              <Text style={styles.label}>Food Type</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                <View style={styles.categorySelector}>
+                  <TouchableOpacity
+                    style={[
+                      styles.categorySelectorButton,
+                      newItem.type === 'veg' && styles.selectedCategorySelectorButton
+                    ]}
+                    onPress={() => setNewItem({ ...newItem, type: 'veg' })}
+                  >
+                    <Text style={[
+                      styles.categorySelectorText,
+                      newItem.type === 'veg' && styles.selectedCategorySelectorText
+                    ]}>
+                      Vegetarian
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[
+                      styles.categorySelectorButton,
+                      newItem.type === 'non-veg' && styles.selectedCategorySelectorButton
+                    ]}
+                    onPress={() => setNewItem({ ...newItem, type: 'non-veg' })}
+                  >
+                    <Text style={[
+                      styles.categorySelectorText,
+                      newItem.type === 'non-veg' && styles.selectedCategorySelectorText
+                    ]}>
+                      Non-Vegetarian
+                    </Text>
+                  </TouchableOpacity>
                 </View>
               </ScrollView>
             </View>
@@ -560,6 +1394,19 @@ const FoodItemsManagement = () => {
               </View>
               
               <View style={[styles.formGroup, { flex: 1, marginLeft: 10 }]}>
+                <Text style={styles.label}>Discount Price (₹)</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Optional"
+                  value={newItem.discount_price}
+                  onChangeText={(text) => setNewItem({ ...newItem, discount_price: text })}
+                  keyboardType="numeric"
+                />
+              </View>
+            </View>
+
+            <View style={styles.formRow}>
+              <View style={[styles.formGroup, { flex: 1, marginRight: 10 }]}>
                 <Text style={styles.label}>Quantity *</Text>
                 <TextInput
                   style={styles.input}
@@ -569,6 +1416,96 @@ const FoodItemsManagement = () => {
                   keyboardType="numeric"
                 />
               </View>
+              
+              <View style={[styles.formGroup, { flex: 1, marginLeft: 10 }]}>
+                <Text style={styles.label}>Sort Order</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="1"
+                  value={newItem.sort_order}
+                  onChangeText={(text) => setNewItem({ ...newItem, sort_order: text })}
+                  keyboardType="numeric"
+                />
+              </View>
+            </View>
+
+            <View style={styles.formRow}>
+              <View style={[styles.formGroup, { flex: 1, marginRight: 10 }]}>
+                <Text style={styles.label}>Prep Time (min)</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="15"
+                  value={newItem.preparation_time}
+                  onChangeText={(text) => {
+                    const numericText = text.replace(/[^0-9]/g, '');
+                    setNewItem({ ...newItem, preparation_time: numericText });
+                  }}
+                  keyboardType="numeric"
+                />
+              </View>
+              
+              <View style={[styles.formGroup, { flex: 1, marginLeft: 10 }]}>
+                <Text style={styles.label}>Calories</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Optional"
+                  value={newItem.calories}
+                  onChangeText={(text) => {
+                    const numericText = text.replace(/[^0-9]/g, '');
+                    setNewItem({ ...newItem, calories: numericText });
+                  }}
+                  keyboardType="numeric"
+                />
+              </View>
+            </View>
+
+            <View style={styles.formGroup}>
+              <Text style={styles.label}>Tags (comma separated)</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="e.g. spicy, best-seller"
+                value={Array.isArray(newItem.tags) ? newItem.tags.join(', ') : ''}
+                onChangeText={(text) => {
+                  const tagsArray = text.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0);
+                  setNewItem({ ...newItem, tags: tagsArray });
+                }}
+              />
+            </View>
+
+            <View style={styles.formGroup}>
+              <Text style={styles.label}>Availability</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                <View style={styles.categorySelector}>
+                  <TouchableOpacity
+                    style={[
+                      styles.categorySelectorButton,
+                      newItem.is_available === true && styles.selectedCategorySelectorButton
+                    ]}
+                    onPress={() => setNewItem({ ...newItem, is_available: true })}
+                  >
+                    <Text style={[
+                      styles.categorySelectorText,
+                      newItem.is_available === true && styles.selectedCategorySelectorText
+                    ]}>
+                      Available
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[
+                      styles.categorySelectorButton,
+                      newItem.is_available === false && styles.selectedCategorySelectorButton
+                    ]}
+                    onPress={() => setNewItem({ ...newItem, is_available: false })}
+                  >
+                    <Text style={[
+                      styles.categorySelectorText,
+                      newItem.is_available === false && styles.selectedCategorySelectorText
+                    ]}>
+                      Unavailable
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </ScrollView>
             </View>
 
             <View style={styles.formGroup}>
@@ -623,6 +1560,21 @@ const styles = StyleSheet.create({
     fontFamily: 'MyFont-Bold',
     color: '#1F2937',
   },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  testButton: {
+    backgroundColor: '#F3F4F6',
+    borderRadius: 20,
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 10,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
   addButton: {
     backgroundColor: '#020A66',
     borderRadius: 20,
@@ -655,7 +1607,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 10,
     backgroundColor: '#FFFFFF',
-    maxHeight: 55,
+    maxHeight: 50,
   },
   categoryButton: {
     paddingHorizontal: 20,
@@ -900,6 +1852,26 @@ const styles = StyleSheet.create({
   },
   selectedCategorySelectorText: {
     color: '#FFFFFF',
+  },
+  backButtonText: {
+    fontSize: 16,
+    fontFamily: 'MyFont-Medium',
+    color: '#020A66',
+  },
+  addButtonText: {
+    fontSize: 20,
+    fontFamily: 'MyFont-Bold',
+    color: '#FFFFFF',
+  },
+  actionButtonText: {
+    fontSize: 10,
+    fontFamily: 'MyFont-Medium',
+    color: '#FFFFFF',
+  },
+  placeholderText: {
+    fontSize: 10,
+    fontFamily: 'MyFont-Medium',
+    color: '#6B7280',
   },
 });
 

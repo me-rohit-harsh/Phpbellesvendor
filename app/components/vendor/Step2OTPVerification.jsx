@@ -122,8 +122,13 @@ const Step2OTPVerification = ({ formData, setFormData, onNext, onBack }) => {
         throw new Error('Invalid OTP. No authentication token received.');
       }
       
-      // Store the token
+      // Store the token and login flag
       await AsyncStorage.setItem('auth_token', response.token);
+      await AsyncStorage.setItem('isVendorLoggedIn', 'true');
+      await AsyncStorage.setItem('vendorData', JSON.stringify({
+        otpVerified: true,
+        timestamp: new Date().toISOString()
+      }));
       
       // Update form data with token
       setFormData({
@@ -157,7 +162,7 @@ const Step2OTPVerification = ({ formData, setFormData, onNext, onBack }) => {
             
             setTimeout(() => {
               setShowAlert(false);
-              router.replace('/vendor/dashboard');
+              router.replace('/home');
             }, 1500);
             return;
           } else if (status === 'under_verification') {

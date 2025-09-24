@@ -21,6 +21,17 @@ export default function Home() {
       try {
         setIsLoading(true);
         
+        // First check if we still have valid authentication data
+        const isLoggedIn = await AsyncStorage.getItem('isVendorLoggedIn');
+        const authToken = await AsyncStorage.getItem('auth_token') || await AsyncStorage.getItem('authToken');
+        
+        // If no authentication data, redirect to registration
+        if (!isLoggedIn || !authToken) {
+          console.log('No valid authentication data found, redirecting to registration');
+          router.replace("/vendor/register");
+          return;
+        }
+        
         // Load business data from AsyncStorage
         const vendorData = await AsyncStorage.getItem('vendorData');
         if (vendorData) {
@@ -38,8 +49,15 @@ export default function Home() {
         
       } catch (error) {
         console.error('Error initializing app:', error);
-        // If there's an error checking status, redirect to registration
-        router.replace("/vendor/register");
+        
+        // Check if this is a 401 error (token expired)
+        if (error.response?.status === 401 || error.message?.includes('401')) {
+          console.log('Authentication error detected, redirecting to registration');
+          router.replace("/vendor/register");
+        } else {
+          // For other errors, still redirect to registration as fallback
+          router.replace("/vendor/register");
+        }
       } finally {
         setIsLoading(false);
       }
@@ -52,7 +70,8 @@ export default function Home() {
   useEffect(() => {
     if (!isLoading && vendorStatus) {
       if (vendorStatus.status === 'under_verification' || vendorStatus.status === 'no_vendor') {
-        router.replace('/vendor/under-verification');
+        // Show verification pending component instead of routing
+        // This will be handled in the render logic below
       }
     }
   }, [vendorStatus, isLoading, router]);
@@ -67,7 +86,29 @@ export default function Home() {
     );
   }
 
-  // If vendor is approved, show dashboard
+  // Show appropriate component based on vendor status
+  if (vendorStatus) {
+    console.log('Vendor status received:', vendorStatus.status);
+    
+    if (vendorStatus.status === 'verified') {
+      // Vendor is verified, show dashboard
+      return <Dashboard businessData={businessData} />;
+    } else if (vendorStatus.status === 'under_verification') {
+      // Vendor is under verification, show verification pending
+      return <VerificationPending vendorData={vendorStatus} />;
+    } else if (vendorStatus.status === 'no_vendor') {
+      // No vendor found, redirect to registration
+      router.replace("/vendor/register");
+      return null;
+    } else {
+      // Unknown status, redirect to registration as fallback
+      console.log('Unknown vendor status:', vendorStatus.status);
+      router.replace("/vendor/register");
+      return null;
+    }
+  }
+
+  // If no vendor status yet, show loading or fallback to dashboard
   return <Dashboard businessData={businessData} />;
 }
 

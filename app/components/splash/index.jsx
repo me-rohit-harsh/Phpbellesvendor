@@ -14,7 +14,12 @@ export default function SplashScreen() {
       try {
         const isLoggedIn = await AsyncStorage.getItem('isVendorLoggedIn');
         const vendorData = await AsyncStorage.getItem('vendorData');
-        const authToken = await AsyncStorage.getItem('authToken');
+        const authToken = await AsyncStorage.getItem('auth_token');
+        
+        // Debug logging
+        console.log('Splash Auth Check - isLoggedIn:', isLoggedIn);
+        console.log('Splash Auth Check - vendorData exists:', !!vendorData);
+        console.log('Splash Auth Check - authToken exists:', !!authToken);
         
         setTimeout(async () => {
           if (isLoggedIn === 'true' && vendorData && authToken) {
@@ -45,38 +50,14 @@ export default function SplashScreen() {
               }
             }
           } else {
-            // User is not logged in, check for incomplete registration data
-            try {
-              const recoveryData = await PersistentStorage.checkRecoverableData();
-              if (recoveryData.canRecover) {
-                console.log('Found incomplete registration data, redirecting to registration with recovery');
-                // Go to registration page which will handle data recovery
-                router.replace('/vendor/register');
-              } else {
-                // No incomplete data, fresh start
-                router.replace('/vendor/register');
-              }
-            } catch (error) {
-              console.error('Error checking for recoverable data:', error);
-              // Fallback to registration
-              router.replace('/vendor/register');
-            }
+            // User is not logged in, go to registration
+            router.replace('/vendor/register');
           }
         }, 2000); // reduced to 2 seconds
       } catch (error) {
         console.error('Error checking auth status:', error);
-        setTimeout(async () => {
-          try {
-            // Even on error, check for incomplete registration data
-            const recoveryData = await PersistentStorage.checkRecoverableData();
-            if (recoveryData.canRecover) {
-              console.log('Found incomplete registration data after error, redirecting to registration with recovery');
-            }
-            router.replace('/vendor/register');
-          } catch (recoveryError) {
-            console.error('Error checking for recoverable data after auth error:', recoveryError);
-            router.replace('/vendor/register');
-          }
+        setTimeout(() => {
+          router.replace('/vendor/register');
         }, 2000);
       }
     };

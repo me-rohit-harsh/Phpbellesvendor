@@ -8,18 +8,21 @@ import {
   Image,
   SafeAreaView,
   ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import CustomAlert from '../CustomAlert';
 import { toggleVendorStatus, getVendorStatus } from '../../../lib/api';
+import { useDashboardStats } from '../../../hooks/useDashboardStats';
+import { useRecentActivity } from '../../../hooks/useRecentActivity';
 
 const Dashboard = ({ businessData }) => {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState('overview');
   const [isRestaurantOpen, setIsRestaurantOpen] = useState(true);
   const [isToggling, setIsToggling] = useState(false);
-  const [isVerifying, setIsVerifying] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   
   const [showAlert, setShowAlert] = useState(false);
   const [alertConfig, setAlertConfig] = useState({
@@ -29,38 +32,22 @@ const Dashboard = ({ businessData }) => {
     buttons: []
   });
 
-  // Additional security check - verify vendor status when dashboard loads
-  useEffect(() => {
-    const verifyVendorStatus = async () => {
-      try {
-        const statusResponse = await getVendorStatus();
-        
-        // If vendor is not verified, redirect to home (which will show verification screen)
-        if (statusResponse && statusResponse.status !== 'verified') {
-          router.replace('/home');
-          return;
-        }
-        
-        setIsVerifying(false);
-      } catch (error) {
-        console.error('Error verifying vendor status:', error);
-        // On error, redirect to registration
-        router.replace('/vendor/register');
-      }
-    };
-
-    verifyVendorStatus();
-  }, []);
-
-  // Show loading while verifying status
-  if (isVerifying) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#FF6B35" />
-        <Text style={styles.loadingText}>Verifying access permissions...</Text>
-      </View>
-    );
-  }
+  // Use the custom hook for dashboard statistics
+  const { stats, loading: statsLoading, error: statsError, refreshStats } = useDashboardStats();
+  
+  // Use the custom hook for recent activities
+  const { 
+    activities, 
+    loading: activitiesLoading, 
+    backgroundLoading: activitiesBackgroundLoading,
+    error: activitiesError, 
+    refreshActivities, 
+    getRelativeTime 
+  } = useRecentActivity({
+    refreshInterval: 30000, // Refresh every 30 seconds
+    limit: 5, // Show last 5 activities
+    autoRefresh: true
+  });
 
   const handleToggleStatus = async () => {
     if (isToggling) return; // Prevent multiple calls
@@ -91,6 +78,22 @@ const Dashboard = ({ businessData }) => {
   };
 
   const menuItems = [
+    {
+      id: 'menu',
+      title: 'Menu Management',
+      subtitle: 'Configure menu settings',
+      icon: 'menu-outline',
+      color: '#10B981',
+      route: '/business/menu'
+    },
+    {
+      id: 'categories',
+      title: 'Categories',
+      subtitle: 'Organize menu items',
+      icon: 'grid-outline',
+      color: '#8B5CF6',
+      route: '/business/categories'
+    },
     {
       id: 'food-items',
       title: 'Food Items',
@@ -142,10 +145,10 @@ const Dashboard = ({ businessData }) => {
   ];
 
   const quickStats = [
-    { label: 'Total Items', value: '24', icon: 'restaurant', color: '#FF6B6B' },
-    { label: 'Orders Today', value: '12', icon: 'bag', color: '#4ECDC4' },
-    { label: 'Revenue', value: '₹2,450', icon: 'cash', color: '#45B7D1' },
-    { label: 'Active Offers', value: '3', icon: 'gift', color: '#F7DC6F' }
+    { label: 'Total Items', value: statsLoading ? '...' : stats.totalItems.toString(), icon: 'restaurant', color: '#FF6B6B' },
+    { label: 'Categories', value: statsLoading ? '...' : stats.totalCategories.toString(), icon: 'grid', color: '#9B59B6' },
+    { label: 'Orders Today', value: stats.ordersToday.toString(), icon: 'bag', color: '#4ECDC4' },
+    { label: 'Revenue', value: stats.revenue, icon: 'cash', color: '#45B7D1' }
   ];
 
   const handleMenuPress = (route) => {
@@ -161,6 +164,16 @@ const Dashboard = ({ businessData }) => {
     });
     setShowAlert(true);
   };
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    Promise.all([
+      refreshStats(),
+      refreshActivities()
+    ]).finally(() => {
+      setRefreshing(false);
+    });
+  }, [refreshStats, refreshActivities]);
 
   const handleQuickAction = (action) => {
     switch (action) {
@@ -233,21 +246,52 @@ const Dashboard = ({ businessData }) => {
         </View>
       </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        style={styles.content} 
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={['#020A66']}
+            tintColor="#020A66"
+            title="Pull to refresh"
+            titleColor="#666"
+          />
+        }
+      >
         {/* Quick Stats */}
         <View style={styles.statsContainer}>
-          <Text style={styles.sectionTitle}>Today's Overview</Text>
-          <View style={styles.statsGrid}>
-            {quickStats.map((stat, index) => (
-              <View key={index} style={styles.statCard}>
-                <View style={[styles.statIcon, { backgroundColor: stat.color + '20' }]}>
-                  <Ionicons name={stat.icon} size={24} color={stat.color} />
-                </View>
-                <Text style={styles.statValue}>{stat.value}</Text>
-                <Text style={styles.statLabel}>{stat.label}</Text>
-              </View>
-            ))}
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Today's Overview</Text>
+            {statsError && (
+              <TouchableOpacity onPress={refreshStats} style={styles.refreshButton}>
+                <Ionicons name="refresh" size={20} color="#020A66" />
+              </TouchableOpacity>
+            )}
           </View>
+          
+          {statsError ? (
+            <View style={styles.errorContainer}>
+              <Ionicons name="alert-circle" size={24} color="#EF4444" />
+              <Text style={styles.errorText}>Failed to load statistics</Text>
+              <TouchableOpacity onPress={refreshStats} style={styles.retryButton}>
+                <Text style={styles.retryText}>Tap to retry</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <View style={styles.statsGrid}>
+              {quickStats.map((stat, index) => (
+                <View key={index} style={styles.statCard}>
+                  <View style={[styles.statIcon, { backgroundColor: stat.color + '20' }]}>
+                    <Ionicons name={stat.icon} size={24} color={stat.color} />
+                  </View>
+                  <Text style={styles.statValue}>{stat.value}</Text>
+                  <Text style={styles.statLabel}>{stat.label}</Text>
+                </View>
+              ))}
+            </View>
+          )}
         </View>
 
         {/* Menu Management */}
@@ -267,15 +311,22 @@ const Dashboard = ({ businessData }) => {
               <View style={styles.menuCardContent}>
                 <Ionicons name="restaurant" size={24} color="#020A66" />
                 <Text style={styles.menuCardTitle}>Food Items</Text>
-                <Text style={styles.menuCardCount}>12 items</Text>
+                <Text style={styles.menuCardCount}>
+                  {statsLoading ? '...' : `${stats.totalItems} items`}
+                </Text>
               </View>
             </TouchableOpacity>
             
-            <TouchableOpacity style={styles.menuCard}>
+            <TouchableOpacity 
+              style={styles.menuCard}
+              onPress={() => router.push('/business/categories')}
+            >
               <View style={styles.menuCardContent}>
                 <Ionicons name="pricetag" size={24} color="#10B981" />
                 <Text style={styles.menuCardTitle}>Categories</Text>
-                <Text style={styles.menuCardCount}>5 categories</Text>
+                <Text style={styles.menuCardCount}>
+                  {statsLoading ? '...' : `${stats.totalCategories} categories`}
+                </Text>
               </View>
             </TouchableOpacity>
           </View>
@@ -308,35 +359,71 @@ const Dashboard = ({ businessData }) => {
 
         {/* Recent Activity */}
         <View style={styles.activityContainer}>
-          <Text style={styles.sectionTitle}>Recent Activity</Text>
+          <View style={styles.sectionHeader}>
+              <View style={styles.activityTitleContainer}>
+                <Text style={styles.sectionTitle}>Recent Activity</Text>
+                {activitiesBackgroundLoading && (
+                  <View style={styles.backgroundLoadingIndicator} />
+                )}
+              </View>
+              <TouchableOpacity 
+                onPress={refreshActivities}
+                style={styles.activityRefreshButton}
+                disabled={activitiesLoading}
+              >
+                {activitiesLoading ? (
+                  <ActivityIndicator size="small" color="#007AFF" />
+                ) : (
+                  <Ionicons name="refresh" size={18} color="#007AFF" />
+                )}
+              </TouchableOpacity>
+            </View>
+          
           <View style={styles.activityCard}>
-            <View style={styles.activityItem}>
-              <View style={styles.activityIcon}>
-                <Ionicons name="checkmark-circle" size={20} color="#4ECDC4" />
-              </View>
-              <View style={styles.activityContent}>
-                <Text style={styles.activityTitle}>New order received</Text>
-                <Text style={styles.activityTime}>2 minutes ago</Text>
-              </View>
+            {activitiesLoading && activities.length === 0 ? (
+            <View style={styles.activityLoadingContainer}>
+              <ActivityIndicator size="large" color="#007AFF" />
+              <Text style={styles.activityLoadingText}>Loading activities...</Text>
             </View>
-            <View style={styles.activityItem}>
-              <View style={styles.activityIcon}>
-                <Ionicons name="add-circle" size={20} color="#45B7D1" />
+          ) : activitiesError ? (
+              <View style={styles.activityErrorContainer}>
+                <Ionicons name="alert-circle" size={24} color="#EF4444" />
+                <Text style={styles.activityErrorText}>Failed to load activities</Text>
+                <TouchableOpacity onPress={refreshActivities} style={styles.retryButton}>
+                  <Text style={styles.retryText}>Retry</Text>
+                </TouchableOpacity>
               </View>
-              <View style={styles.activityContent}>
-                <Text style={styles.activityTitle}>Menu item added</Text>
-                <Text style={styles.activityTime}>1 hour ago</Text>
+            ) : activities.length === 0 ? (
+              <View style={styles.activityEmptyContainer}>
+                <Ionicons name="time-outline" size={32} color="#9CA3AF" />
+                <Text style={styles.activityEmptyText}>No recent activities</Text>
+                <Text style={styles.activityEmptySubtext}>
+                  Real-time activities will appear here when customers place orders, you update your menu, or other business events occur
+                </Text>
               </View>
-            </View>
-            <View style={styles.activityItem}>
-              <View style={styles.activityIcon}>
-                <Ionicons name="trending-up" size={20} color="#F7DC6F" />
-              </View>
-              <View style={styles.activityContent}>
-                <Text style={styles.activityTitle}>Sales increased by 15%</Text>
-                <Text style={styles.activityTime}>Today</Text>
-              </View>
-            </View>
+            ) : (
+              activities.map((activity, index) => (
+                <View key={activity.id || index} style={styles.activityItem}>
+                  <View style={styles.activityIcon}>
+                    <Ionicons 
+                      name={activity.icon} 
+                      size={20} 
+                      color={activity.color} 
+                    />
+                  </View>
+                  <View style={styles.activityContent}>
+                    <Text style={styles.activityTitle}>{activity.title}</Text>
+                    <Text style={styles.activityDescription}>{activity.description}</Text>
+                    <Text style={styles.activityTime}>{getRelativeTime(activity.timestamp)}</Text>
+                  </View>
+                  {activity.amount && (
+                    <View style={styles.activityAmount}>
+                      <Text style={styles.activityAmountText}>₹{activity.amount}</Text>
+                    </View>
+                  )}
+                </View>
+              ))
+            )}
           </View>
         </View>
       </ScrollView>
@@ -536,6 +623,21 @@ const styles = StyleSheet.create({
     marginTop: 10,
     marginBottom: 30,
   },
+  activityTitleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  backgroundLoadingIndicator: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#007AFF',
+    marginLeft: 8,
+    opacity: 0.6,
+  },
+  activityRefreshButton: {
+    padding: 4,
+  },
   activityCard: {
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
@@ -571,6 +673,62 @@ const styles = StyleSheet.create({
     color: '#6B7280',
     fontFamily: 'MyFont-Regular',
   },
+  activityDescription: {
+    fontSize: 13,
+    color: '#4B5563',
+    fontFamily: 'MyFont-Regular',
+    marginBottom: 2,
+  },
+  activityAmount: {
+    alignItems: 'flex-end',
+  },
+  activityAmountText: {
+    fontSize: 14,
+    color: '#059669',
+    fontFamily: 'MyFont-Bold',
+  },
+  activityLoadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 20,
+  },
+  activityLoadingText: {
+    fontSize: 14,
+    color: '#6B7280',
+    fontFamily: 'MyFont-Regular',
+    marginLeft: 8,
+  },
+  activityErrorContainer: {
+    alignItems: 'center',
+    paddingVertical: 20,
+  },
+  activityErrorText: {
+    fontSize: 14,
+    color: '#EF4444',
+    fontFamily: 'MyFont-Medium',
+    marginTop: 8,
+    marginBottom: 12,
+  },
+  activityEmptyContainer: {
+    alignItems: 'center',
+    paddingVertical: 30,
+  },
+  activityEmptyText: {
+    fontSize: 16,
+    color: '#6B7280',
+    fontFamily: 'MyFont-Medium',
+    marginTop: 12,
+    marginBottom: 4,
+  },
+  activityEmptySubtext: {
+    fontSize: 12,
+    color: '#9CA3AF',
+    fontFamily: 'MyFont-Regular',
+    textAlign: 'center',
+    lineHeight: 16,
+    paddingHorizontal: 20,
+  },
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -602,19 +760,56 @@ const styles = StyleSheet.create({
      paddingRight: 16,
    },
    section: {
-     backgroundColor: '#FFFFFF',
-     borderRadius: 12,
-     padding: 20,
-     marginBottom: 20,
-     shadowColor: '#000',
-     shadowOffset: {
-       width: 0,
-       height: 2,
-     },
-     shadowOpacity: 0.1,
-     shadowRadius: 3.84,
-     elevation: 5,
-   },
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 20,
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  errorContainer: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 10,
+    padding: 20,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.08,
+    shadowRadius: 2,
+    elevation: 3,
+  },
+  errorText: {
+    fontSize: 16,
+    color: '#EF4444',
+    fontFamily: 'MyFont-Medium',
+    marginTop: 8,
+    marginBottom: 12,
+  },
+  retryButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    backgroundColor: '#020A66',
+    borderRadius: 6,
+  },
+  retryText: {
+    fontSize: 14,
+    color: '#FFFFFF',
+    fontFamily: 'MyFont-Medium',
+  },
+  refreshButton: {
+    padding: 8,
+    borderRadius: 6,
+    backgroundColor: '#F3F4F6',
+  },
 });
 
 export default Dashboard;

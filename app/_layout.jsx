@@ -3,6 +3,7 @@ import useCustomFonts from "../hooks/useFonts";
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect, useState, useRef } from 'react';
 import { GlobalToast, ToastManager } from './components/NotificationToast';
+import PermissionHandler from './components/PermissionHandler';
 
 // Keep the splash screen visible while we fetch resources
 SplashScreen.preventAutoHideAsync();
@@ -10,6 +11,7 @@ SplashScreen.preventAutoHideAsync();
 export default function RootLayout() {
   const fontsLoaded = useCustomFonts();
   const [appReady, setAppReady] = useState(false);
+  const [permissionsGranted, setPermissionsGranted] = useState(false);
   const toastRef = useRef(null);
 
   useEffect(() => {
@@ -35,9 +37,25 @@ export default function RootLayout() {
     return () => clearTimeout(timeout);
   }, [fontsLoaded]);
 
+  const handlePermissionsGranted = () => {
+    setPermissionsGranted(true);
+  };
+
   // Don't render anything until app is ready
   if (!appReady) {
     return null;
+  }
+
+  // Show permission handler before main app
+  if (!permissionsGranted) {
+    return (
+      <>
+        <PermissionHandler onPermissionsGranted={handlePermissionsGranted}>
+          <Stack screenOptions={{ headerShown: false }} />
+        </PermissionHandler>
+        <GlobalToast ref={toastRef} />
+      </>
+    );
   }
 
   return (
