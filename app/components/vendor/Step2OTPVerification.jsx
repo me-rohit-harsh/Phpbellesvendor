@@ -16,6 +16,7 @@ import { verifyOTP, requestOTP, APIError, isValidationError, formatValidationErr
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import PersistentStorage from '../../../lib/storage/persistentStorage';
 
 const Step2OTPVerification = ({ formData, setFormData, onNext, onBack }) => {
   const router = useRouter();
@@ -38,6 +39,24 @@ const Step2OTPVerification = ({ formData, setFormData, onNext, onBack }) => {
       setCanResend(true);
     }
   }, [timer]);
+
+  // Auto-save functionality
+  useEffect(() => {
+    const autoSave = setInterval(() => {
+      const currentData = {
+        ...formData,
+        otp: otp.join('')
+      };
+      
+      PersistentStorage.saveRegistrationData({
+        formData: currentData,
+        currentStep: 2,
+        totalSteps: 8
+      });
+    }, 5000); // Auto-save every 5 seconds
+
+    return () => clearInterval(autoSave);
+  }, [formData, otp]);
 
   // Note: Clipboard auto-fill removed due to Expo Go compatibility issues
 

@@ -5,6 +5,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import Dashboard from "../components/business/Dashboard";
 import VerificationPending from "../components/business/VerificationPending";
 import { getVendorStatus } from "../../lib/api";
+import PersistentStorage from "../../lib/storage/persistentStorage";
 
 export default function Home() {
   const router = useRouter();
@@ -28,6 +29,14 @@ export default function Home() {
         // If no authentication data, redirect to registration
         if (!isLoggedIn || !authToken) {
           console.log('No valid authentication data found, redirecting to registration');
+          router.replace("/vendor/register");
+          return;
+        }
+
+        // Check if there's incomplete registration data
+        const registrationData = await PersistentStorage.getRegistrationData();
+        if (registrationData && registrationData.currentStep < 8) {
+          console.log('Incomplete registration found, redirecting to continue registration');
           router.replace("/vendor/register");
           return;
         }
@@ -55,8 +64,15 @@ export default function Home() {
           console.log('Authentication error detected, redirecting to registration');
           router.replace("/vendor/register");
         } else {
-          // For other errors, still redirect to registration as fallback
-          router.replace("/vendor/register");
+          // For other errors, check if there's incomplete registration
+          const registrationData = await PersistentStorage.getRegistrationData();
+          if (registrationData && registrationData.currentStep < 8) {
+            console.log('Error occurred but incomplete registration found, redirecting to continue registration');
+            router.replace("/vendor/register");
+          } else {
+            // For other errors, redirect to registration as fallback
+            router.replace("/vendor/register");
+          }
         }
       } finally {
         setIsLoading(false);
@@ -108,8 +124,10 @@ export default function Home() {
     }
   }
 
-  // If no vendor status yet, show loading or fallback to dashboard
-  return <Dashboard businessData={businessData} />;
+  // If no vendor status yet, redirect to registration instead of showing dashboard
+  console.log('No vendor status available, redirecting to registration');
+  router.replace("/vendor/register");
+  return null;
 }
 
 const styles = StyleSheet.create({

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -38,11 +38,11 @@ const Dashboard = ({ businessData }) => {
   // Use the custom hook for recent activities
   const { 
     activities, 
-    loading: activitiesLoading, 
+    loading: activitiesLoading,
     backgroundLoading: activitiesBackgroundLoading,
-    error: activitiesError, 
-    refreshActivities, 
-    getRelativeTime 
+    error: activitiesError,
+    refreshActivities,
+    getRelativeTime
   } = useRecentActivity({
     refreshInterval: 30000, // Refresh every 30 seconds
     limit: 5, // Show last 5 activities

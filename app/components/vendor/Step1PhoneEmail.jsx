@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -14,6 +14,7 @@ import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import CustomAlert from '../CustomAlert';
 import { requestOTP, APIError, isValidationError, formatValidationErrors, getVendorStatus } from '../../../lib/api';
+import PersistentStorage from '../../../lib/storage/persistentStorage';
 
 const Step1PhoneEmail = ({ formData, setFormData, onNext }) => {
   const router = useRouter();
@@ -58,6 +59,25 @@ const Step1PhoneEmail = ({ formData, setFormData, onNext }) => {
     const emailRegex = /^[a-zA-Z0-9@._-]*$/;
     return emailRegex.test(text);
   };
+
+  // Auto-save functionality
+  useEffect(() => {
+    const autoSave = setInterval(() => {
+      const currentData = {
+        ...formData,
+        phoneNumber,
+        email
+      };
+      
+      PersistentStorage.saveRegistrationData({
+        formData: currentData,
+        currentStep: 1,
+        totalSteps: 8
+      });
+    }, 5000); // Auto-save every 5 seconds
+
+    return () => clearInterval(autoSave);
+  }, [formData, phoneNumber, email]);
 
   const handlePhoneChange = (text) => {
     const validatedText = validatePhoneNumber(text);

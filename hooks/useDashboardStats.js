@@ -18,7 +18,7 @@ export const useDashboardStats = () => {
       setStatsLoading(true);
       setStatsError(false);
       
-      console.log('Fetching dashboard stats...');
+  
       
       // Fetch data in parallel
       const [itemsResponse, categoriesResponse] = await Promise.all([
@@ -29,7 +29,7 @@ export const useDashboardStats = () => {
       const totalItems = itemsResponse?.data?.length || 0;
       const totalCategories = categoriesResponse?.length || 0;
       
-      console.log('Dashboard stats updated:', { totalItems, totalCategories });
+
 
       setStats(prevStats => ({
         ...prevStats,
@@ -37,7 +37,7 @@ export const useDashboardStats = () => {
         totalCategories
       }));
     } catch (error) {
-      console.error('Error fetching dashboard stats:', error);
+
       setStatsError(true);
     } finally {
       setStatsLoading(false);
@@ -45,14 +45,14 @@ export const useDashboardStats = () => {
   }, []);
 
   const refreshStats = useCallback(() => {
-    console.log('Manual refresh triggered');
+
     fetchStats();
   }, [fetchStats]);
 
   // Refresh data when screen comes into focus
   useFocusEffect(
     useCallback(() => {
-      console.log('Dashboard screen focused - refreshing stats');
+
       fetchStats();
     }, [fetchStats])
   );
@@ -65,7 +65,7 @@ export const useDashboardStats = () => {
   // Auto-refresh every 30 seconds when app is active
   useEffect(() => {
     const interval = setInterval(() => {
-      console.log('Auto-refresh triggered');
+
       fetchStats();
     }, 30000); // 30 seconds
 

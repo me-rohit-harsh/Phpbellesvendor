@@ -3,6 +3,7 @@ import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Activi
 import { Ionicons } from '@expo/vector-icons';
 import CustomAlert from '../CustomAlert';
 import { getVendorTypes, getFoodTypes } from '../../../lib/api/vendor';
+import PersistentStorage from '../../../lib/storage/persistentStorage';
 
 const Step4RestaurantDetails = ({ onNext, onBack, formData, setFormData }) => {
   const [restaurantName, setRestaurantName] = useState(formData.restaurantName || '');
@@ -102,6 +103,27 @@ const Step4RestaurantDetails = ({ onNext, onBack, formData, setFormData }) => {
 
     fetchData();
   }, []);
+
+  // Auto-save functionality
+  useEffect(() => {
+    const autoSave = setInterval(() => {
+      const currentData = {
+        ...formData,
+        restaurantName,
+        selectedCuisines,
+        vendorType,
+        vendorTypeId
+      };
+      
+      PersistentStorage.saveRegistrationData({
+        formData: currentData,
+        currentStep: 4,
+        totalSteps: 8
+      });
+    }, 5000); // Auto-save every 5 seconds
+
+    return () => clearInterval(autoSave);
+  }, [formData, restaurantName, selectedCuisines, vendorType, vendorTypeId]);
 
   const validateRestaurantName = (text) => {
     // Allow letters, numbers, spaces, and common business name characters

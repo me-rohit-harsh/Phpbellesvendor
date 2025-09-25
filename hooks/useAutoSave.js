@@ -44,10 +44,10 @@ const useAutoSave = (formData, formId, options = {}) => {
         ToastManager.success('Data saved successfully', 2000);
       }
       
-      console.log(`[AutoSave] Saved data for form: ${formId}`);
+      // Data saved successfully
       onSave?.(formData);
     } catch (error) {
-      console.error(`[AutoSave] Error saving form data:`, error);
+      // Silently handle save errors
       
       // Show error notification
       ToastManager.error('Save failed, please try again', 3000);
@@ -88,13 +88,13 @@ const useAutoSave = (formData, formId, options = {}) => {
     try {
       const savedData = await PersistentStorage.getData(formId);
       if (savedData) {
-        console.log(`[AutoSave] Loaded saved data for form: ${formId}`, savedData);
+  
         ToastManager.info('Previous data restored successfully', 2500);
         return savedData;
       }
       return null;
     } catch (error) {
-      console.error(`[AutoSave] Error loading saved data:`, error);
+
       ToastManager.error('Data recovery failed', 3000);
       onError?.(error);
       return null;
@@ -108,9 +108,9 @@ const useAutoSave = (formData, formId, options = {}) => {
     try {
       await PersistentStorage.removeFormDraft(formId);
       lastSavedDataRef.current = null;
-      console.log(`[AutoSave] Cleared saved data for form: ${formId}`);
+      // Data cleared successfully
     } catch (error) {
-      console.error(`[AutoSave] Error clearing saved data:`, error);
+      // Silently handle clear errors
     }
   }, [formId]);
 

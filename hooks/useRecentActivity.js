@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { getRecentActivities } from '../lib/api/vendor';
 
 /**
  * Custom hook for managing recent activity data with real-time updates
@@ -105,12 +104,9 @@ export const useRecentActivity = (options = {}) => {
     };
   }, [activityTypes]);
 
-  // Log activity fetch attempts for debugging
-  const logActivityFetch = useCallback((message, data = null) => {
-    console.log(`[Recent Activity] ${message}`, data ? data : '');
-  }, []);
 
-  // Fetch activities from API
+
+  // Fetch activities from API (disabled - no API endpoint available)
   const fetchActivities = useCallback(async (loadingType = 'visible') => {
     if (!mountedRef.current) return;
 
@@ -122,30 +118,12 @@ export const useRecentActivity = (options = {}) => {
       }
       setError(null);
 
-      logActivityFetch('Fetching activities from API...', { limit });
-
-      const response = await getRecentActivities({ limit });
-      
-      if (response && response.data) {
-        if (Array.isArray(response.data) && response.data.length > 0) {
-          const formattedActivities = response.data.map(formatActivity);
-          setActivities(formattedActivities);
-          setLastUpdated(new Date());
-          logActivityFetch('Activities loaded successfully', { count: formattedActivities.length });
-        } else {
-          // API returned empty array - no activities available
-          setActivities([]);
-          setLastUpdated(new Date());
-          logActivityFetch('No activities found from API');
-        }
-      } else {
-        throw new Error('Invalid API response format');
-      }
+      // Since there's no API endpoint for recent activities, return empty array
+      setActivities([]);
+      setLastUpdated(new Date());
 
     } catch (error) {
-      console.error('Error fetching activities:', error);
-      logActivityFetch('Failed to fetch activities', error.message);
-      
+      // Silently handle errors without logging
       if (mountedRef.current) {
         setError(error.message || 'Failed to load activities');
         // Don't set empty activities on error - keep previous data if available
@@ -154,15 +132,13 @@ export const useRecentActivity = (options = {}) => {
         }
       }
     } finally {
+      // Reset loading states
       if (mountedRef.current) {
-        if (loadingType === 'visible') {
-          setLoading(false);
-        } else if (loadingType === 'background') {
-          setBackgroundLoading(false);
-        }
+        setLoading(false);
+        setBackgroundLoading(false);
       }
     }
-  }, [limit, formatActivity, logActivityFetch, activities.length]);
+  }, [activities.length]);
 
   // Manual refresh function
   const refreshActivities = useCallback(() => {

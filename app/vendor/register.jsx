@@ -59,21 +59,19 @@ const VendorRegister = () => {
   const handleDataRecovery = async (shouldRecover) => {
     try {
       if (shouldRecover && recoveryData) {
-        // Recover form data
-        if (recoveryData.registrationData) {
-          setFormData(recoveryData.registrationData);
-        }
-        
-        // Recover current step from progress
-        if (recoveryData.progress && recoveryData.progress.currentStep) {
-          setCurrentStep(recoveryData.progress.currentStep);
+        // Recover registration data
+        const registrationData = await PersistentStorage.getRegistrationData();
+        if (registrationData) {
+          setFormData(registrationData.formData || {});
+          setCurrentStep(registrationData.currentStep || 1);
+          console.log('Restored to step:', registrationData.currentStep);
         }
         
         ToastManager.success('Previous data restored successfully');
         console.log('Data recovered successfully');
       } else {
         // Clear all saved data if user chooses not to recover
-        await PersistentStorage.clearAllData();
+        await PersistentStorage.clearAllTempData();
         console.log('Saved data cleared');
       }
     } catch (error) {

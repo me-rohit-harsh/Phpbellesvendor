@@ -1,13 +1,24 @@
 <?xml version="1.0" encoding="utf-8"?>
 <network-security-config>
-    <domain-config cleartextTrafficPermitted="true">
+    <!-- Production API domain - HTTPS only -->
+    <domain-config cleartextTrafficPermitted="false">
         <domain includeSubdomains="true">phpadmin.phpbells.com</domain>
+        <trust-anchors>
+            <certificates src="system"/>
+            <certificates src="user"/>
+        </trust-anchors>
+    </domain-config>
+    
+    <!-- Development domains - allow cleartext for local development -->
+    <domain-config cleartextTrafficPermitted="true">
         <domain includeSubdomains="true">localhost</domain>
         <domain includeSubdomains="true">10.0.2.2</domain>
         <domain includeSubdomains="true">192.168.1.1</domain>
+        <domain includeSubdomains="true">192.168.0.1</domain>
+        <domain includeSubdomains="true">127.0.0.1</domain>
     </domain-config>
     
-    <!-- Allow all HTTPS connections -->
+    <!-- Base configuration - HTTPS only for production -->
     <base-config cleartextTrafficPermitted="false">
         <trust-anchors>
             <certificates src="system"/>

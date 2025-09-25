@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet, Animated, Dimensions } from '
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import PersistentStorage from '../../../lib/storage/persistentStorage';
 
 const { width, height } = Dimensions.get('window');
 
@@ -69,6 +70,9 @@ const Step8Success = () => {
 
   const handleContinue = async () => {
     try {
+      // Clear registration progress data since registration is complete
+      await PersistentStorage.clearAllTempData();
+      
       // Set authentication state
       await AsyncStorage.setItem('isVendorLoggedIn', 'true');
       await AsyncStorage.setItem('vendorData', JSON.stringify({
@@ -76,6 +80,7 @@ const Step8Success = () => {
         timestamp: new Date().toISOString()
       }));
       
+      console.log('Registration completed successfully, cleared temp data');
       router.replace('/(app)/home'); // Navigate to business dashboard
     } catch (error) {
       console.error('Error saving auth state:', error);

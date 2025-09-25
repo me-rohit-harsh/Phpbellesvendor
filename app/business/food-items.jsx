@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -17,6 +17,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { getMenuItems, getMenuItemsByCategory, getMenuCategories, createMenuItem, updateMenuItem, toggleMenuItemStock } from '../../lib/api/vendor';
 import { testConnectivity } from '../../lib/api/api';
+import { showImagePickerOptions } from '../../lib/utils/permissions';
 
 const FoodItemsManagement = () => {
   const router = useRouter();
@@ -29,7 +30,9 @@ const FoodItemsManagement = () => {
   const [showAlert, setShowAlert] = useState(false);
   const [alertConfig, setAlertConfig] = useState({ title: '', message: '', type: 'error', buttons: [] });
   
-  // Helper functions for alerts
+  // Add ref to track if data has been loaded to prevent infinite loops
+  const hasLoadedData = useRef(false);
+  
   const showErrorAlert = (title, message) => {
     setAlertConfig({
       title,
@@ -89,8 +92,8 @@ const FoodItemsManagement = () => {
   const [categories, setCategories] = useState([{ id: 'all', name: 'All' }]); // Start with 'All' as default
   const [categoryObjects, setCategoryObjects] = useState([]); // Store full category objects for API calls
   
-  // Load menu items from API
-  const loadMenuItems = async (selectedCategoryId = null, categoriesData = null) => {
+  // Load menu items from API (memoized to prevent unnecessary re-renders)
+  const loadMenuItems = useCallback(async (selectedCategoryId = null, categoriesData = null) => {
     try {
       setLoading(true);
       let response;
@@ -231,7 +234,7 @@ const FoodItemsManagement = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []); // Empty dependency array since we don't want this function to change
 
   // Load categories from API
   const loadCategories = async () => {
@@ -327,8 +330,8 @@ const FoodItemsManagement = () => {
     return categories.length > 1 ? categories[1].name : 'Main Course';
   };
 
-  // Handle category selection
-  const handleCategorySelect = async (category) => {
+  // Handle category selection (memoized to prevent unnecessary re-renders)
+  const handleCategorySelect = useCallback(async (category) => {
     console.log('🎯 Category selected:', category);
     setSelectedCategory(category.name);
     
@@ -341,7 +344,7 @@ const FoodItemsManagement = () => {
       // Load items for the specific category
       await loadMenuItems(category.id);
     }
-  };
+  }, [loadMenuItems]); // Depend on loadMenuItems since we call it
 
   // Handle connectivity test
   const handleTestConnectivity = async () => {
@@ -378,14 +381,28 @@ const FoodItemsManagement = () => {
     }
   };
 
-  // Load data on component mount and when category changes
+  // Load data on component mount only (prevent infinite loops)
   useEffect(() => {
     const loadData = async () => {
-      const loadedCategories = await loadCategories(); // Load categories first
-      await loadMenuItems(null, loadedCategories); // Then load menu items with the loaded categories
+      if (hasLoadedData.current) {
+        console.log('🔄 Data already loaded, skipping...');
+        return;
+      }
+      
+      console.log('🚀 Initial data load starting...');
+      hasLoadedData.current = true;
+      
+      try {
+        const loadedCategories = await loadCategories(); // Load categories first
+        await loadMenuItems(null, loadedCategories); // Then load menu items with the loaded categories
+        console.log('✅ Initial data load completed');
+      } catch (error) {
+        console.error('❌ Error during initial data load:', error);
+        hasLoadedData.current = false; // Reset on error to allow retry
+      }
     };
     loadData();
-  }, [categoryId]);
+  }, []); // Empty dependency array - only run on mount
   
   // Function to get most ordered items
   const getMostOrderedItems = (limit = 5) => {
@@ -461,11 +478,18 @@ const FoodItemsManagement = () => {
       return;
     }
 
+    // Temporarily making image optional for testing API errors
     // Check if image is selected before proceeding
-    if (!getImageUri(newItem.image)) {
-      showErrorAlert('Validation Error', 'Please select an image before saving');
-      return;
-    }
+    // if (!newItem.image) {
+    //   showErrorAlert('Validation Error', 'Please select an image for your food item');
+    //   return;
+    // }
+
+    // Validate image file object structure
+    // if (typeof newItem.image === 'object' && !newItem.image.uri) {
+    //   showErrorAlert('Validation Error', 'Invalid image file. Please select a new image');
+    //   return;
+    // }
 
     // Validate discount price if provided
     if (newItem.discount_price && (isNaN(parseFloat(newItem.discount_price)) || parseFloat(newItem.discount_price) < 0)) {
@@ -504,9 +528,8 @@ const FoodItemsManagement = () => {
         return;
       }
       
-      // Create the menu item with the image URL
+      // Create the menu item with optional image
       console.log('📦 Creating menu item...');
-      const imageUrl = newItem.image; // Use the image URL directly
       const itemData = {
         menu_category_id: selectedCategoryObj.id.toString(), // API expects string ID
         name: newItem.name,
@@ -520,7 +543,7 @@ const FoodItemsManagement = () => {
         calories: newItem.calories || '0', // Use form value or default to 0
         sort_order: newItem.sort_order || '1', // Use form value or default sort order
         stock: parseInt(newItem.quantity).toString(), // API expects string
-        image: imageUrl // Use the uploaded image URL
+        ...(newItem.image && { image: newItem.image }) // Only include image if it exists
       };
 
       // Log the payload before sending to API
@@ -528,7 +551,7 @@ const FoodItemsManagement = () => {
       console.log('🏷️ Available categories:', categoryObjects);
       console.log('🎯 Selected category object:', selectedCategoryObj);
       console.log('🆔 Using menu_category_id:', itemData.menu_category_id);
-      console.log('🖼️ Final image URL:', imageUrl);
+      console.log('🖼️ Final image object (optional):', newItem.image || 'No image selected');
       
       console.log('Starting API call to createMenuItem...');
       const response = await createMenuItem(itemData);
@@ -832,24 +855,18 @@ const FoodItemsManagement = () => {
     return null;
   };
 
-  const pickImage = async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      allowsEditing: true,
-      aspect: [4, 3],
-      quality: 1,
-    });
-
-    if (!result.canceled) {
-      const asset = result.assets[0];
-      // Create a proper file object for FormData
-      const imageFile = {
-        uri: asset.uri,
-        type: asset.type || 'image/jpeg',
-        name: asset.fileName || `menu_item_${Date.now()}.jpg`,
-      };
-      console.log('📸 Selected image file:', imageFile);
-      setNewItem({ ...newItem, image: imageFile });
-    }
+  const pickImage = () => {
+    showImagePickerOptions(
+      (imageFile) => {
+        console.log('📸 Selected image file:', imageFile);
+        setNewItem({ ...newItem, image: imageFile });
+      },
+      {
+        allowsEditing: true,
+        aspect: [4, 3],
+        quality: 0.8,
+      }
+    );
   };
 
   const FoodItemCard = ({ item }) => {

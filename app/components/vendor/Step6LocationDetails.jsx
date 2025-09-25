@@ -13,6 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import { WebView } from 'react-native-webview';
 import CustomAlert from '../CustomAlert';
+import PersistentStorage from '../../../lib/storage/persistentStorage';
 
 const Step6LocationDetails = ({ onNext, onBack, formData, setFormData }) => {
   const [address, setAddress] = useState(formData.address || '');
@@ -53,6 +54,29 @@ const Step6LocationDetails = ({ onNext, onBack, formData, setFormData }) => {
     }
     return text.slice(0, -1);
   };
+
+  // Auto-save functionality
+  useEffect(() => {
+    const autoSave = setInterval(() => {
+      const currentData = {
+        ...formData,
+        address,
+        landmark,
+        pincode,
+        city,
+        state,
+        selectedLocation
+      };
+      
+      PersistentStorage.saveRegistrationData({
+        formData: currentData,
+        currentStep: 6,
+        totalSteps: 8
+      });
+    }, 5000); // Auto-save every 5 seconds
+
+    return () => clearInterval(autoSave);
+  }, [formData, address, landmark, pincode, city, state, selectedLocation]);
 
   const handleAddressChange = (text) => {
     if (validateAddress(text)) {

@@ -17,6 +17,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getCompleteProfile, updateCompleteProfile } from '../../lib/api/vendor';
+import { showImagePickerOptions } from '../../lib/utils/permissions';
 
 
 const ProfileManagement = () => {
@@ -218,19 +219,20 @@ const ProfileManagement = () => {
     }
   };
 
-  const pickImage = async (type) => {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      allowsEditing: true,
-      aspect: type === 'profile' ? [1, 1] : [16, 9],
-      quality: 1,
-    });
-
-    if (!result.canceled) {
-      setProfileData(prev => ({
-        ...prev,
-        [type === 'profile' ? 'profileImage' : 'coverImage']: result.assets[0].uri
-      }));
-    }
+  const pickImage = (type) => {
+    showImagePickerOptions(
+      (imageFile) => {
+        setProfileData(prev => ({
+          ...prev,
+          [type === 'profile' ? 'profileImage' : 'coverImage']: imageFile.uri
+        }));
+      },
+      {
+        allowsEditing: true,
+        aspect: type === 'profile' ? [1, 1] : [16, 9],
+        quality: 0.8,
+      }
+    );
   };
 
   const ProfileSection = ({ title, children }) => (
