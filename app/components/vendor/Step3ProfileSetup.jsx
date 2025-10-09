@@ -40,7 +40,7 @@ const Step3ProfileSetup = ({ formData, setFormData, onNext, onBack }) => {
     {
       interval: 5000, // Save every 5 seconds
       onSave: (data) => {
-        console.log('[Step3] Auto-saved profile data');
+        console.info('[Step3] Auto-saved profile data');
         // Also save to registration data with step tracking
         PersistentStorage.saveRegistrationData({
           ...formData,
@@ -61,7 +61,7 @@ const Step3ProfileSetup = ({ formData, setFormData, onNext, onBack }) => {
       try {
         const savedData = await loadSavedData();
         if (savedData && savedData.step === 3) {
-          console.log('[Step3] Loading saved profile data');
+          console.info('[Step3] Loading saved profile data');
           setFullName(savedData.fullName || '');
           setIdProof(savedData.idProof || null);
           setProfilePhoto(savedData.profilePhoto || null);
@@ -232,7 +232,7 @@ const Step3ProfileSetup = ({ formData, setFormData, onNext, onBack }) => {
       // Clear this step's saved data since we're moving forward
       await clearSavedData();
       
-      console.log('[Step3] Moving to next step, cleared saved data');
+      console.info('[Step3] Moving to next step, cleared saved data');
       onNext();
     } catch (error) {
       console.error('[Step3] Error during step transition:', error);

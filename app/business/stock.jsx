@@ -145,7 +145,7 @@ const StockManagement = () => {
     }
 
     // Here you would typically save to your backend
-    console.log('Saving adjustment:', {
+    console.info('Saving adjustment:', {
       item: selectedItem.id,
       type: adjustmentType,
       quantity: parseFloat(adjustmentQuantity),

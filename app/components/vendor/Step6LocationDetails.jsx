@@ -211,7 +211,7 @@ const Step6LocationDetails = ({ onNext, onBack, formData, setFormData }) => {
         setShowAlert(true);
       }
     } catch (error) {
-      console.log('Error getting location:', error);
+      console.error('Error getting location:', error);
       setAlertConfig({
         title: 'Error',
         message: 'Unable to get your current location. Please try again.',
@@ -236,7 +236,7 @@ const Step6LocationDetails = ({ onNext, onBack, formData, setFormData }) => {
         await Linking.openURL(googleMapUrl);
       }
     } catch (error) {
-      console.log('Error opening map:', error);
+      console.error('Error opening map:', error);
       setAlertConfig({
         title: 'Error',
         message: 'Unable to open map application.',
@@ -270,7 +270,7 @@ const Step6LocationDetails = ({ onNext, onBack, formData, setFormData }) => {
            setState(postOffice.State);
          }
        } catch (error) {
-         console.log('Error fetching address:', error);
+         console.error('Error fetching address:', error);
        }
      }
    };

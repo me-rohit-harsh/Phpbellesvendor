@@ -80,11 +80,11 @@ const Step8Success = () => {
         timestamp: new Date().toISOString()
       }));
       
-      console.log('Registration completed successfully, cleared temp data');
-      router.replace('/(app)/home'); // Navigate to business dashboard
+      console.info('Registration completed successfully, cleared temp data');
+      router.replace('/home'); // Navigate to business dashboard
     } catch (error) {
       console.error('Error saving auth state:', error);
-      router.replace('/(app)/home'); // Navigate anyway
+      router.replace('/home'); // Navigate anyway
     }
   };
 

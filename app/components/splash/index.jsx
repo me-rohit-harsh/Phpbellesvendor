@@ -17,9 +17,9 @@ export default function SplashScreen() {
         const authToken = await AsyncStorage.getItem('auth_token');
         
         // Debug logging
-        console.log('Splash Auth Check - isLoggedIn:', isLoggedIn);
-        console.log('Splash Auth Check - vendorData exists:', !!vendorData);
-        console.log('Splash Auth Check - authToken exists:', !!authToken);
+        console.info('Splash Auth Check - isLoggedIn:', isLoggedIn);
+        console.info('Splash Auth Check - vendorData exists:', !!vendorData);
+        console.info('Splash Auth Check - authToken exists:', !!authToken);
         
         setTimeout(async () => {
           if (isLoggedIn === 'true' && vendorData && authToken) {
@@ -30,10 +30,10 @@ export default function SplashScreen() {
               // Route based on vendor status
               if (statusResponse && statusResponse.status === 'verified') {
                 // Vendor is verified, go to dashboard
-                router.replace('/(app)/home');
+                router.replace('/home');
               } else if (statusResponse && statusResponse.status === 'under_verification') {
                 // Vendor is registered but under verification, go to verification screen
-                router.replace('/(app)/home'); // home will handle showing verification screen
+                router.replace('/home'); // home will handle showing verification screen
               } else {
                 // Vendor needs to register, go to registration
                 router.replace('/vendor/register');
@@ -43,7 +43,7 @@ export default function SplashScreen() {
               // If API call fails, check if we have vendor data locally
               if (vendorData) {
                 // User has local data, go to home (which will handle verification)
-                router.replace('/(app)/home');
+                router.replace('/home');
               } else {
                 // No local data, go to registration
                 router.replace('/vendor/register');
@@ -67,7 +67,7 @@ export default function SplashScreen() {
 
   // Add console log to debug
   useEffect(() => {
-    console.log('Splash screen mounted');
+    console.info('Splash screen mounted');
   }, []);
 
   return (

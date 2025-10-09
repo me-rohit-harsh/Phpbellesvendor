@@ -177,7 +177,7 @@ const Dashboard = ({ businessData }) => {
 
   const handleQuickAction = (action) => {
     switch (action) {
-      case 'Add Food Item':
+      case 'Add Food Items':
         router.push('/business/food-items');
         break;
       case 'View Orders':

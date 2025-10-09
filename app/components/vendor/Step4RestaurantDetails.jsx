@@ -30,7 +30,7 @@ const Step4RestaurantDetails = ({ onNext, onBack, formData, setFormData }) => {
     const fetchData = async () => {
       try {
         setLoading(true);
-        console.log('Starting to fetch vendor types and food types...');
+        console.info('Starting to fetch vendor types and food types...');
         
         // Fetch vendor types and food types in parallel
         const [vendorTypesData, foodTypesData] = await Promise.all([
@@ -38,17 +38,17 @@ const Step4RestaurantDetails = ({ onNext, onBack, formData, setFormData }) => {
           getFoodTypes()
         ]);
 
-        console.log('Received vendor types:', vendorTypesData);
-        console.log('Received food types:', foodTypesData);
+        console.info('Received vendor types:', vendorTypesData);
+        console.info('Received food types:', foodTypesData);
 
         // Handle vendor types response
         if (vendorTypesData && Array.isArray(vendorTypesData.data)) {
           setVendorTypes([{ id: null, name: 'Select Vendor Type', icon: '' }, ...vendorTypesData.data]);
-          console.log('Set vendor types successfully');
+          console.info('Set vendor types successfully');
         } else if (vendorTypesData && Array.isArray(vendorTypesData)) {
           // If the response is directly an array
           setVendorTypes([{ id: null, name: 'Select Vendor Type', icon: '' }, ...vendorTypesData]);
-          console.log('Set vendor types successfully (direct array)');
+          console.info('Set vendor types successfully (direct array)');
         } else {
           console.warn('Unexpected vendor types response format:', vendorTypesData);
         }
@@ -56,11 +56,11 @@ const Step4RestaurantDetails = ({ onNext, onBack, formData, setFormData }) => {
         // Handle food types response
         if (foodTypesData && Array.isArray(foodTypesData.data)) {
           setCuisineTypes(foodTypesData.data);
-          console.log('Set food types successfully');
+          console.info('Set food types successfully');
         } else if (foodTypesData && Array.isArray(foodTypesData)) {
           // If the response is directly an array
           setCuisineTypes(foodTypesData);
-          console.log('Set food types successfully (direct array)');
+          console.info('Set food types successfully (direct array)');
         } else {
           console.warn('Unexpected food types response format:', foodTypesData);
         }
@@ -77,7 +77,7 @@ const Step4RestaurantDetails = ({ onNext, onBack, formData, setFormData }) => {
         showValidationError('Network Error', 'Failed to load vendor and food types. Using offline data.');
         
         // Fallback to hardcoded data
-        console.log('Using fallback data for cuisine types and vendor types');
+        console.info('Using fallback data for cuisine types and vendor types');
         setCuisineTypes([
           { id: 1, name: 'North Indian', icon: '🍛' },
           { id: 2, name: 'South Indian', icon: '🍲' },
@@ -97,7 +97,7 @@ const Step4RestaurantDetails = ({ onNext, onBack, formData, setFormData }) => {
         ]);
       } finally {
         setLoading(false);
-        console.log('Finished loading vendor and food types');
+        console.info('Finished loading vendor and food types');
       }
     };
 

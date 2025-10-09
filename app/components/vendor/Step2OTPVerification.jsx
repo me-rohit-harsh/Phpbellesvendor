@@ -119,7 +119,7 @@ const Step2OTPVerification = ({ formData, setFormData, onNext, onBack }) => {
     setVerificationStatus('verifying');
     
     try {
-      console.log('Verifying OTP:', enteredOtp);
+      console.info('Verifying OTP:', enteredOtp);
       
       // Call API to verify OTP
       const response = await verifyOTP({
@@ -128,7 +128,7 @@ const Step2OTPVerification = ({ formData, setFormData, onNext, onBack }) => {
         otp: enteredOtp
       });
       
-      console.log('OTP verification response:', response);
+      console.info('OTP verification response:', response);
       
       // Check if the response indicates success
       if (response.success === false || response.error) {
@@ -157,7 +157,7 @@ const Step2OTPVerification = ({ formData, setFormData, onNext, onBack }) => {
         isVerified: true
       });
       
-      console.log('OTP verified successfully, checking vendor status...');
+      console.info('OTP verified successfully, checking vendor status...');
       
       // Check vendor status after successful verification
       try {
@@ -203,11 +203,11 @@ const Step2OTPVerification = ({ formData, setFormData, onNext, onBack }) => {
             return;
           } else if (status === 'no_vendor') {
             // User needs to register as vendor, continue with registration flow
-            console.log('User needs to register as vendor, continuing with registration flow');
+            console.info('User needs to register as vendor, continuing with registration flow');
           }
         }
       } catch (statusError) {
-        console.log('Could not fetch vendor status, continuing with registration flow');
+        console.info('Could not fetch vendor status, continuing with registration flow');
       }
       
       setVerificationStatus('success');
