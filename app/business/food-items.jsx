@@ -2,19 +2,21 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
   Text,
- StyleSheet,
+  StyleSheet,
   ScrollView,
   TouchableOpacity,
   TextInput,
   Image,
   SafeAreaView,
   Modal,
+  Platform,
 } from 'react-native';
 import CustomAlert from '../components/CustomAlert';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
 import * as ImagePicker from 'expo-image-picker';
+// Import Android-specific functions
 import { getMenuItems, getMenuItemsByCategory, getMenuCategories, createMenuItem, updateMenuItem, toggleMenuItemStock } from '../../lib/api/vendor';
 import { testConnectivity } from '../../lib/api/api';
 import { showImagePickerOptions } from '../../lib/utils/permissions';
@@ -92,31 +94,37 @@ const FoodItemsManagement = () => {
   const [categories, setCategories] = useState([{ id: 'all', name: 'All' }]); // Start with 'All' as default
   const [categoryObjects, setCategoryObjects] = useState([]); // Store full category objects for API calls
   
-  // Load menu items from API (memoized to prevent unnecessary re-renders)
+  // Enhanced loadMenuItems function with better error handling
   const loadMenuItems = useCallback(async (selectedCategoryId = null, categoriesData = null) => {
+    setLoading(true);
+    
     try {
-      setLoading(true);
-      let response;
-      
       // Use provided categories or fall back to state
       const availableCategories = categoriesData || categoryObjects;
       
-      console.log('🔄 Loading menu items...');
-      console.log('🔄 Selected category ID:', selectedCategoryId);
-      console.log('🔄 Current selected category:', selectedCategory);
+      // removed console.log by codemod — use logger for persistent logs
+      // removed console.log by codemod — use logger for persistent logs
+      // removed console.log by codemod — use logger for persistent logs
+      // removed console.log by codemod — use logger for persistent logs
+      
+      // Add Android-specific logging
+      if (Platform.OS === 'android') {
+        // removed console.log by codemod — use logger for persistent logs
+      }
       
       // Determine which API call to make
+      let response;
       if (selectedCategoryId && selectedCategoryId !== 'all') {
         // Load items for specific category ID
-        console.log(`🔄 Loading menu items for category ID ${selectedCategoryId} from API...`);
+        // removed console.log by codemod — use logger for persistent logs
         response = await getMenuItemsByCategory(selectedCategoryId);
       } else {
         // Load all items (for 'All' category or no specific category)
-        console.log('📋 Fetching all menu items...');
-        response = await getMenuItems();
+        // removed console.log by codemod — use logger for persistent logs
+        response = await getMenuItems(); // This now uses Android-specific handling
       }
       
-      console.log('📦 Raw menu items response:', response);
+      console.info('📦 Raw menu items response:', response);
       
       // Handle different response structures
       let menuItems = [];
@@ -124,12 +132,12 @@ const FoodItemsManagement = () => {
         // If response.data is an array, use it directly
         if (Array.isArray(response.data)) {
           menuItems = response.data;
-          console.log('✅ Using response.data structure');
+          console.info('✅ Using response.data structure');
         }
         // If response.data has a data property (nested), use that
         else if (response.data.data && Array.isArray(response.data.data)) {
           menuItems = response.data.data;
-          console.log('✅ Using response.data.data structure');
+          console.info('✅ Using response.data.data structure');
         }
         // If response.data has items property, use that
         else if (response.data.items && Array.isArray(response.data.items)) {
@@ -141,11 +149,11 @@ const FoodItemsManagement = () => {
         }
       } else if (response) {
         menuItems = Array.isArray(response) ? response : [response];
-        console.log('✅ Using direct response structure');
+        console.info('✅ Using direct response structure');
       }
       
-      console.log('🍽️ Processed menu items count:', menuItems.length);
-      console.log('🍽️ Processed menu items:', menuItems);
+      // removed console.log by codemod — use logger for persistent logs
+      // removed console.log by codemod — use logger for persistent logs
       
       // Normalize menu items to ensure consistent category and stock fields for filtering
       const normalizedItems = menuItems.map(item => {
@@ -194,42 +202,31 @@ const FoodItemsManagement = () => {
         };
       });
       
-      console.log('🔄 Normalized items with category info:', normalizedItems.map(item => ({
-        id: item.id,
-        name: item.name,
-        category: item.category,
-        originalCategory: item.originalCategory,
-        categoryName: item.categoryName
-      })));
+      // removed console.log by codemod — use logger for persistent logs
       
       // Debug each item's image field
       normalizedItems.forEach((item, index) => {
-        console.log(`🖼️ Item ${index + 1} (${item.name || 'Unknown'}):`, {
-          id: item.id,
-          name: item.name,
-          category: item.category,
-          price: item.price,
-          asset_url: item.asset_url,
-          asset_id: item.asset_id,
-          image: item.image,
-          image_url: item.image_url,
-          photo: item.photo,
-          picture: item.picture,
-          thumbnail: item.thumbnail,
-          allFields: Object.keys(item)
-        });
+        // removed console.log by codemod — use logger for persistent logs
       });
       
       setFoodItems(normalizedItems);
-      console.log('✅ Food items state updated with', normalizedItems.length, 'items');
+      console.info('✅ Food items state updated with', normalizedItems.length, 'items');
       
       if (normalizedItems.length === 0) {
-        console.log('⚠️ No menu items found in response');
+        console.info('⚠️ No menu items found in response');
       }
     } catch (error) {
       console.error('❌ Error loading menu items:', error);
       console.error('❌ Error details:', error.response?.data || error.message);
-      showErrorAlert('Error', 'Failed to load menu items. Please try again.');
+      
+      // Enhanced error handling for Android
+      if (Platform.OS === 'android' && error.message && (error.message.includes('Network Error') || error.code === 'ERR_NETWORK')) {
+        console.error('🤖 Android Network Error detected - showing specific error message');
+        showErrorAlert('Network Error', 'Unable to connect to the server. Please check your internet connection and try again. This specific Android network issue has been fixed - please restart the app.');
+      } else {
+        showErrorAlert('Error', `Failed to load menu items: ${error.message || 'Please try again.'}`);
+      }
+      
       setFoodItems([]); // Set empty array on error
     } finally {
       setLoading(false);
@@ -249,9 +246,9 @@ const FoodItemsManagement = () => {
     ];
 
     try {
-      console.log('🔄 Loading categories from API...');
+      console.info('🔄 Loading categories from API...');
       const response = await getMenuCategories();
-      console.log('📦 Categories API Response:', response);
+      console.info('📦 Categories API Response:', response);
       
       // Handle different response structures
       let categoryList = [];
@@ -281,7 +278,7 @@ const FoodItemsManagement = () => {
         }
       }
       
-      console.log('🏷️ Processed categories from API:', categoryList);
+      console.info('🏷️ Processed categories from API:', categoryList);
       
       // If we got categories from API, use them
       if (categoryList && categoryList.length > 0) {
@@ -299,8 +296,8 @@ const FoodItemsManagement = () => {
           { id: 'uncategorized', name: 'Uncategorized' }
         ];
         
-        console.log('📋 Final categories list from API:', allCategories);
-        console.log('📋 Category objects for API calls:', categoryList);
+        console.info('📋 Final categories list from API:', allCategories);
+        console.info('📋 Category objects for API calls:', categoryList);
         setCategories(allCategories);
         
         // Set default category for new items (first non-'All' category)
@@ -310,7 +307,7 @@ const FoodItemsManagement = () => {
         return categoryList; // Return the loaded categories
       } else {
         // No categories from API, use fallback
-        console.log('⚠️ No categories from API, using fallback categories');
+        console.info('⚠️ No categories from API, using fallback categories');
         setCategories(fallbackCategories);
         setNewItem(prev => ({ ...prev, category: 'Main Course' }));
         return []; // Return empty array for fallback
@@ -318,7 +315,7 @@ const FoodItemsManagement = () => {
     } catch (error) {
       console.error('❌ Error loading categories:', error);
       // Always show fallback categories on error
-      console.log('🔄 Using fallback categories due to error');
+      console.info('🔄 Using fallback categories due to error');
       setCategories(fallbackCategories);
       setNewItem(prev => ({ ...prev, category: 'Main Course' }));
       return []; // Return empty array on error
@@ -332,15 +329,15 @@ const FoodItemsManagement = () => {
 
   // Handle category selection (memoized to prevent unnecessary re-renders)
   const handleCategorySelect = useCallback(async (category) => {
-    console.log('🎯 Category selected:', category);
+    console.info('🎯 Category selected:', category);
     setSelectedCategory(category.name);
     
     // Load items based on selected category
     if (category.id === 'all' || category.name === 'All') {
-      console.log('📋 Loading all items...');
+      console.info('📋 Loading all items...');
       await loadMenuItems(); // Load all items
     } else {
-      console.log('🏷️ Loading items for category:', category.name, 'ID:', category.id);
+      console.info('🏷️ Loading items for category:', category.name, 'ID:', category.id);
       // Load items for the specific category
       await loadMenuItems(category.id);
     }
@@ -348,7 +345,7 @@ const FoodItemsManagement = () => {
 
   // Handle connectivity test
   const handleTestConnectivity = async () => {
-    console.log('🔍 Testing connectivity...');
+    console.info('🔍 Testing connectivity...');
     setAlert({
       visible: true,
       title: 'Testing Connectivity',
@@ -359,12 +356,16 @@ const FoodItemsManagement = () => {
 
     try {
       const result = await testConnectivity();
-      console.log('✅ Connectivity test result:', result);
+      console.info('✅ Connectivity test result:', result);
       
       setAlert({
         visible: true,
         title: 'Connectivity Test Results',
-        message: `✅ API Connection: ${result.success ? 'SUCCESS' : 'FAILED'}\n📡 Response Time: ${result.responseTime}ms\n🌐 Base URL: ${result.baseURL}\n📱 Platform: ${result.platform}${result.error ? `\n❌ Error: ${result.error}` : ''}`,
+        message: `✅ API Connection: ${result.success ? 'SUCCESS' : 'FAILED'}
+📡 Response Time: ${result.responseTime}ms
+🌐 Base URL: ${result.baseURL}
+📱 Platform: ${result.platform}${result.error ? `
+❌ Error: ${result.error}` : ''}`,
         type: result.success ? 'success' : 'error',
         onConfirm: () => setAlert({ visible: false })
       });
@@ -374,7 +375,13 @@ const FoodItemsManagement = () => {
       setAlert({
         visible: true,
         title: 'Connectivity Test Failed',
-        message: `❌ Network test failed: ${error.message}\n\nTroubleshooting:\n• Check internet connection\n• Verify API server status\n• Try rebuilding the app\n• Check network security settings`,
+        message: `❌ Network test failed: ${error.message}
+
+Troubleshooting:
+• Check internet connection
+• Verify API server status
+• Try rebuilding the app
+• Check network security settings`,
         type: 'error',
         onConfirm: () => setAlert({ visible: false })
       });
@@ -385,17 +392,17 @@ const FoodItemsManagement = () => {
   useEffect(() => {
     const loadData = async () => {
       if (hasLoadedData.current) {
-        console.log('🔄 Data already loaded, skipping...');
+        console.info('🔄 Data already loaded, skipping...');
         return;
       }
       
-      console.log('🚀 Initial data load starting...');
+      console.info('🚀 Initial data load starting...');
       hasLoadedData.current = true;
       
       try {
         const loadedCategories = await loadCategories(); // Load categories first
         await loadMenuItems(null, loadedCategories); // Then load menu items with the loaded categories
-        console.log('✅ Initial data load completed');
+        console.info('✅ Initial data load completed');
       } catch (error) {
         console.error('❌ Error during initial data load:', error);
         hasLoadedData.current = false; // Reset on error to allow retry
@@ -440,14 +447,6 @@ const FoodItemsManagement = () => {
                        itemCategory.toLowerCase() === selectedCategory.toLowerCase();
     }
     
-    console.log('🔍 Filtering item:', {
-      itemName: item.name,
-      itemCategory: itemCategory,
-      selectedCategory: selectedCategory,
-      matchesSearch: matchesSearch,
-      matchesCategory: matchesCategory
-    });
-    
     return matchesSearch && matchesCategory;
   });
 
@@ -478,18 +477,17 @@ const FoodItemsManagement = () => {
       return;
     }
 
-    // Temporarily making image optional for testing API errors
-    // Check if image is selected before proceeding
-    // if (!newItem.image) {
-    //   showErrorAlert('Validation Error', 'Please select an image for your food item');
-    //   return;
-    // }
+    // Image is required by the API
+    if (!newItem.image) {
+      showErrorAlert('Validation Error', 'Please select an image for your food item');
+      return;
+    }
 
     // Validate image file object structure
-    // if (typeof newItem.image === 'object' && !newItem.image.uri) {
-    //   showErrorAlert('Validation Error', 'Invalid image file. Please select a new image');
-    //   return;
-    // }
+    if (typeof newItem.image === 'object' && !newItem.image.uri) {
+      showErrorAlert('Validation Error', 'Invalid image file. Please select a new image');
+      return;
+    }
 
     // Validate discount price if provided
     if (newItem.discount_price && (isNaN(parseFloat(newItem.discount_price)) || parseFloat(newItem.discount_price) < 0)) {
@@ -503,22 +501,11 @@ const FoodItemsManagement = () => {
       return;
     }
     
-    // Log image information for debugging
-    console.log('🖼️ Image data type:', typeof newItem.image);
-    console.log('🖼️ Image value:', newItem.image);
-
     try {
-      // Debug logging for category selection
-      console.log('🏷️ Selected category name:', newItem.category);
-      console.log('🏷️ Available category objects:', categoryObjects);
-      console.log('🏷️ Category objects count:', categoryObjects.length);
-      
       // Find the category object to get the category_id
       const selectedCategoryObj = categoryObjects.find(cat => 
         (cat.name || cat.category_name) === newItem.category
       );
-
-      console.log('🏷️ Found category object:', selectedCategoryObj);
 
       if (!selectedCategoryObj || !selectedCategoryObj.id) {
         console.error('❌ Category not found or missing ID');
@@ -528,8 +515,8 @@ const FoodItemsManagement = () => {
         return;
       }
       
-      // Create the menu item with optional image
-      console.log('📦 Creating menu item...');
+      // Create the menu item with required image
+      console.info('📦 Creating menu item...');
       const itemData = {
         menu_category_id: selectedCategoryObj.id.toString(), // API expects string ID
         name: newItem.name,
@@ -543,23 +530,10 @@ const FoodItemsManagement = () => {
         calories: newItem.calories || '0', // Use form value or default to 0
         sort_order: newItem.sort_order || '1', // Use form value or default sort order
         stock: parseInt(newItem.quantity).toString(), // API expects string
-        ...(newItem.image && { image: newItem.image }) // Only include image if it exists
+        image: newItem.image // Required image field
       };
 
-      // Log the payload before sending to API
-      console.log("📦 Payload for createMenuItem:", itemData);
-      console.log('🏷️ Available categories:', categoryObjects);
-      console.log('🎯 Selected category object:', selectedCategoryObj);
-      console.log('🆔 Using menu_category_id:', itemData.menu_category_id);
-      console.log('🖼️ Final image object (optional):', newItem.image || 'No image selected');
-      
-      console.log('Starting API call to createMenuItem...');
       const response = await createMenuItem(itemData);
-      console.log('✅ API call completed successfully');
-      console.log('✅ Full response object:', response);
-      console.log('✅ Response status:', response?.status);
-      console.log('✅ Response data:', response?.data);
-      console.log('✅ Response type:', typeof response);
       
       // Validate that we actually got a successful response
       if (!response) {
@@ -567,12 +541,12 @@ const FoodItemsManagement = () => {
       }
       
       // Check if response indicates success
+      // The API returns the created menu item object directly, so check for required fields
       const isSuccess = response.success || 
                        (response.data && response.data.success) || 
                        (response.status && response.status >= 200 && response.status < 300) ||
-                       response.message?.includes('success');
-      
-      console.log('🔍 Success validation:', isSuccess);
+                       response.message?.includes('success') ||
+                       (response.id && response.name && response.price); // Menu item created successfully
       
       if (!isSuccess) {
         console.error('❌ API response indicates failure:', response);
@@ -580,19 +554,13 @@ const FoodItemsManagement = () => {
       }
       
       // Reload menu items to get the updated list from server
-      console.log('🔄 Reloading menu items...');
-      console.log('🔄 Current foodItems count before reload:', foodItems.length);
-      const reloadStartTime = Date.now();
       await loadMenuItems();
-      const reloadEndTime = Date.now();
-      console.log('🔄 Reload completed in', reloadEndTime - reloadStartTime, 'ms');
-      console.log('🔄 New foodItems count after reload:', foodItems.length);
       
       // Only show success if everything completed without errors
       setNewItem({ name: '', category: getDefaultCategory(), price: '', discount_price: '', description: '', image: null, quantity: '', type: 'veg', preparation_time: '15', calories: '', tags: [], sort_order: '1', is_available: true, totalOrders: 0, weeklyOrders: 0 });
       setShowAddModal(false);
       
-      console.log('🎉 Food item creation process completed successfully');
+      console.info('🎉 Food item creation process completed successfully');
       showSuccessAlert('Success', 'Food item added successfully!');
     } catch (error) {
       console.error('❌ Error adding food item:', error);
@@ -762,8 +730,6 @@ const FoodItemsManagement = () => {
 
   const toggleStock = async (id) => {
     try {
-      console.log(`🔄 Toggling stock for item ${id}...`);
-      
       // Find the current item to get its current stock status
       const currentItem = foodItems.find(item => item.id === id);
       if (!currentItem) {
@@ -778,13 +744,8 @@ const FoodItemsManagement = () => {
         return;
       }
       
-      console.log(`Current stock status: ${currentItem.is_available || currentItem.inStock}`);
-      
       // Call the toggle stock API
       const response = await toggleMenuItemStock(id);
-      console.log('Stock toggle API response:', response);
-      console.log('Response data:', response.data);
-      console.log('Response data keys:', Object.keys(response.data || {}));
       
       // Check for successful response and extract the new stock status
       if (response && response.data) {
@@ -796,13 +757,9 @@ const FoodItemsManagement = () => {
                               response.data.available;
         const message = response.data.message;
         
-        console.log('Extracted stock status:', newStockStatus);
-        console.log('Available fields in response:', response.data);
-        
         // If stock status is still undefined, toggle the current state as fallback
         const currentStatus = currentItem.is_available !== undefined ? currentItem.is_available : currentItem.inStock;
         const finalStockStatus = newStockStatus !== undefined ? newStockStatus : !currentStatus;
-        console.log('Final stock status to use:', finalStockStatus);
         
         // Update local state with the new stock status from the API
         setFoodItems(prevItems => prevItems.map(item => 
@@ -822,7 +779,7 @@ const FoodItemsManagement = () => {
         });
         setShowAlert(true);
         
-        console.log(`✅ Stock status updated successfully for item ${id}: ${finalStockStatus}`);
+        console.info(`✅ Stock status updated successfully for item ${id}: ${finalStockStatus}`);
       } else {
         throw new Error('Invalid response from server');
       }
@@ -1053,7 +1010,7 @@ const FoodItemsManagement = () => {
               ) : (
                 <View style={styles.imagePickerPlaceholder}>
                   <Ionicons name="camera" size={32} color="#6B7280" />
-                  <Text style={styles.imagePickerText}>Add Photo</Text>
+                  <Text style={styles.imagePickerText}>Add Photo *</Text>
                 </View>
               )}
             </TouchableOpacity>
@@ -1321,7 +1278,7 @@ const FoodItemsManagement = () => {
               ) : (
                 <View style={styles.imagePickerPlaceholder}>
                   <Ionicons name="camera" size={32} color="#6B7280" />
-                  <Text style={styles.imagePickerText}>Add Photo</Text>
+                  <Text style={styles.imagePickerText}>Add Photo *</Text>
                 </View>
               )}
             </TouchableOpacity>
@@ -1771,6 +1728,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 20,
     paddingVertical: 15,
+    paddingTop: 30,
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',
   },

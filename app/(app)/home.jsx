@@ -28,7 +28,7 @@ export default function Home() {
         
         // If no authentication data, redirect to registration
         if (!isLoggedIn || !authToken) {
-          console.log('No valid authentication data found, redirecting to registration');
+          console.info('No valid authentication data found, redirecting to registration');
           router.replace("/vendor/register");
           return;
         }
@@ -36,7 +36,7 @@ export default function Home() {
         // Check if there's incomplete registration data
         const registrationData = await PersistentStorage.getRegistrationData();
         if (registrationData && registrationData.currentStep < 8) {
-          console.log('Incomplete registration found, redirecting to continue registration');
+          console.info('Incomplete registration found, redirecting to continue registration');
           router.replace("/vendor/register");
           return;
         }
@@ -61,13 +61,13 @@ export default function Home() {
         
         // Check if this is a 401 error (token expired)
         if (error.response?.status === 401 || error.message?.includes('401')) {
-          console.log('Authentication error detected, redirecting to registration');
+          console.info('Authentication error detected, redirecting to registration');
           router.replace("/vendor/register");
         } else {
           // For other errors, check if there's incomplete registration
           const registrationData = await PersistentStorage.getRegistrationData();
           if (registrationData && registrationData.currentStep < 8) {
-            console.log('Error occurred but incomplete registration found, redirecting to continue registration');
+            console.info('Error occurred but incomplete registration found, redirecting to continue registration');
             router.replace("/vendor/register");
           } else {
             // For other errors, redirect to registration as fallback
@@ -104,7 +104,7 @@ export default function Home() {
 
   // Show appropriate component based on vendor status
   if (vendorStatus) {
-    console.log('Vendor status received:', vendorStatus.status);
+    console.info('Vendor status received:', vendorStatus.status);
     
     if (vendorStatus.status === 'verified') {
       // Vendor is verified, show dashboard
@@ -118,14 +118,14 @@ export default function Home() {
       return null;
     } else {
       // Unknown status, redirect to registration as fallback
-      console.log('Unknown vendor status:', vendorStatus.status);
+      console.info('Unknown vendor status:', vendorStatus.status);
       router.replace("/vendor/register");
       return null;
     }
   }
 
   // If no vendor status yet, redirect to registration instead of showing dashboard
-  console.log('No vendor status available, redirecting to registration');
+  console.info('No vendor status available, redirecting to registration');
   router.replace("/vendor/register");
   return null;
 }

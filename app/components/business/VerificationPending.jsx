@@ -23,7 +23,7 @@ const VerificationPending = ({ vendorData }) => {
         'isVendorLoggedIn',
         'vendorData'
       ]);
-      console.log('All auth data cleared');
+      console.info('All auth data cleared');
       
       // Navigate to vendor registration screen
       router.replace('/vendor/register');

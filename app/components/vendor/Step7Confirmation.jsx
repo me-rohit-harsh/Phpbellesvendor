@@ -41,7 +41,7 @@ const Step7Confirmation = ({ onNext, onBack, formData, setFormData }) => {
         shop_license: formData.fssaiDocument,
       };
 
-      console.log('Submitting vendor registration:', vendorData);
+      console.info('Submitting vendor registration:', vendorData);
       const response = await registerVendor(vendorData);
       
       setIsSubmitting(false);

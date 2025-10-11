@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import * as ImagePicker from 'expo-image-picker';
-import * as MediaLibrary from 'expo-media-library';
+// import * as MediaLibrary from 'expo-media-library';
 import { Audio } from 'expo-av';
 
 const PermissionHandler = ({ onPermissionsGranted, children }) => {
@@ -34,6 +34,10 @@ const PermissionHandler = ({ onPermissionsGranted, children }) => {
       description: 'Select photos from your gallery',
       icon: 'images-outline',
       request: async () => {
+        // Android uses system photo/document pickers which do not require persistent media permissions
+        if (Platform.OS === 'android') {
+          return true;
+        }
         const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
         return status === 'granted';
       }
@@ -67,7 +71,10 @@ const PermissionHandler = ({ onPermissionsGranted, children }) => {
   const checkExistingPermissions = async () => {
     try {
       const cameraStatus = await ImagePicker.getCameraPermissionsAsync();
-      const mediaLibraryStatus = await ImagePicker.getMediaLibraryPermissionsAsync();
+      // Skip media library permission checks on Android; not required when using system pickers
+      const mediaLibraryStatus = Platform.OS === 'android'
+        ? { status: 'granted' }
+        : await ImagePicker.getMediaLibraryPermissionsAsync();
       const locationStatus = await Location.getForegroundPermissionsAsync();
       const audioStatus = await Audio.getPermissionsAsync();
 

@@ -64,15 +64,15 @@ const VendorRegister = () => {
         if (registrationData) {
           setFormData(registrationData.formData || {});
           setCurrentStep(registrationData.currentStep || 1);
-          console.log('Restored to step:', registrationData.currentStep);
+          console.info('Restored to step:', registrationData.currentStep);
         }
         
         ToastManager.success('Previous data restored successfully');
-        console.log('Data recovered successfully');
+        console.info('Data recovered successfully');
       } else {
         // Clear all saved data if user chooses not to recover
         await PersistentStorage.clearAllTempData();
-        console.log('Saved data cleared');
+        console.info('Saved data cleared');
       }
     } catch (error) {
       console.error('Error handling data recovery:', error);

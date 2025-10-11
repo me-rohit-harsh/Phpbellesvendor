@@ -35,3 +35,7 @@ yarn-error.*
 
 # typescript
 *.tsbuildinfo
+
+# Ignore local signing credentials
+credentials.js
+android/app/my-release-key.keystore

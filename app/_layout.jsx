@@ -22,13 +22,13 @@ export default function RootLayout() {
 
     // Set a timeout to ensure app doesn't hang if fonts fail to load
     const timeout = setTimeout(() => {
-      console.log('RootLayout: Proceeding without waiting for fonts');
+      console.info('RootLayout: Proceeding without waiting for fonts');
       setAppReady(true);
       SplashScreen.hideAsync();
     }, 2000); // 2 second timeout
 
     if (fontsLoaded) {
-      console.log('RootLayout: Fonts loaded successfully');
+      console.info('RootLayout: Fonts loaded successfully');
       clearTimeout(timeout);
       setAppReady(true);
       SplashScreen.hideAsync();
