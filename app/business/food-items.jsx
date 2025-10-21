@@ -18,7 +18,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 // Import Android-specific functions
 import { getMenuItems, getMenuItemsByCategory, getMenuCategories, createMenuItem, updateMenuItem, toggleMenuItemStock } from '../../lib/api/vendor';
-import { testConnectivity } from '../../lib/api/api';
+// removed api import previously used for connectivity tests
 import { showImagePickerOptions } from '../../lib/utils/permissions';
 
 const FoodItemsManagement = () => {
@@ -343,50 +343,7 @@ const FoodItemsManagement = () => {
     }
   }, [loadMenuItems]); // Depend on loadMenuItems since we call it
 
-  // Handle connectivity test
-  const handleTestConnectivity = async () => {
-    console.info('🔍 Testing connectivity...');
-    setAlert({
-      visible: true,
-      title: 'Testing Connectivity',
-      message: 'Running network diagnostics...',
-      type: 'info',
-      onConfirm: () => setAlert({ visible: false })
-    });
-
-    try {
-      const result = await testConnectivity();
-      console.info('✅ Connectivity test result:', result);
-      
-      setAlert({
-        visible: true,
-        title: 'Connectivity Test Results',
-        message: `✅ API Connection: ${result.success ? 'SUCCESS' : 'FAILED'}
-📡 Response Time: ${result.responseTime}ms
-🌐 Base URL: ${result.baseURL}
-📱 Platform: ${result.platform}${result.error ? `
-❌ Error: ${result.error}` : ''}`,
-        type: result.success ? 'success' : 'error',
-        onConfirm: () => setAlert({ visible: false })
-      });
-    } catch (error) {
-      console.error('❌ Connectivity test failed:', error);
-      
-      setAlert({
-        visible: true,
-        title: 'Connectivity Test Failed',
-        message: `❌ Network test failed: ${error.message}
-
-Troubleshooting:
-• Check internet connection
-• Verify API server status
-• Try rebuilding the app
-• Check network security settings`,
-        type: 'error',
-        onConfirm: () => setAlert({ visible: false })
-      });
-    }
-  };
+  // Connectivity test handler removed — not needed in production UI
 
   // Load data on component mount only (prevent infinite loops)
   useEffect(() => {
@@ -914,12 +871,7 @@ Troubleshooting:
           {categoryId ? `Category ${categoryId} Items` : 'Food Items'}
         </Text>
         <View style={styles.headerActions}>
-          <TouchableOpacity 
-            style={styles.testButton}
-            onPress={handleTestConnectivity}
-          >
-            <Ionicons name="wifi" size={20} color="#020A66" />
-          </TouchableOpacity>
+          {/* Connectivity test button removed */}
           <TouchableOpacity 
             style={styles.addButton}
             onPress={() => setShowAddModal(true)}
