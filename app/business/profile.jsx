@@ -583,31 +583,24 @@ const ProfileManagement = () => {
                         setIsLoading(true);
                         
                         // Use the logout API function
-                        await logout();
+                        const result = await logout();
                         
-                        console.info('✅ Logout successful, redirecting to login...');
+                        console.info('✅ Logout complete:', result);
+                        console.info('👉 Redirecting to login screen...');
                         
-                        // Navigate to login/register screen
-                        router.replace('/auth/Login');
+                        // Small delay to ensure state is cleared
+                        setTimeout(() => {
+                          router.replace('/auth/Login');
+                        }, 100);
                       } catch (error) {
                         console.error('❌ Error during logout:', error);
                         
-                        // Show error but still redirect to login
-                        setAlertConfig({
-                          title: 'Logout Error',
-                          message: 'There was an error during logout, but your session has been cleared.',
-                          type: 'warning',
-                          buttons: [
-                            { 
-                              text: 'OK', 
-                              onPress: () => {
-                                setShowAlert(false);
-                                router.replace('/auth/Login');
-                              }
-                            }
-                          ]
-                        });
-                        setShowAlert(true);
+                        // Logout function now always returns success
+                        // Still navigate to login even if there's an error
+                        console.info('👉 Redirecting to login screen after error...');
+                        setTimeout(() => {
+                          router.replace('/auth/Login');
+                        }, 100);
                       } finally {
                         setIsLoading(false);
                       }

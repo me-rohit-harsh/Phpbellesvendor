@@ -35,26 +35,24 @@ const VerificationPending = ({ vendorData }) => {
               setIsLoggingOut(true);
               
               // Use the logout API function
-              await logout();
+              const result = await logout();
               
-              console.info('✅ Logout successful, redirecting to login...');
+              console.info('✅ Logout complete:', result);
+              console.info('👉 Redirecting to login screen...');
               
-              // Navigate to login screen
-              router.replace('/auth/Login');
+              // Small delay to ensure state is cleared
+              setTimeout(() => {
+                router.replace('/auth/Login');
+              }, 100);
             } catch (error) {
               console.error('❌ Error during logout:', error);
               
-              // Show error but still redirect to login
-              Alert.alert(
-                'Logout Error',
-                'There was an error during logout, but your session has been cleared.',
-                [
-                  { 
-                    text: 'OK', 
-                    onPress: () => router.replace('/auth/Login')
-                  }
-                ]
-              );
+              // Logout function now always returns success
+              // Still navigate to login
+              console.info('👉 Redirecting to login screen after error...');
+              setTimeout(() => {
+                router.replace('/auth/Login');
+              }, 100);
             } finally {
               setIsLoggingOut(false);
             }
