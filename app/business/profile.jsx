@@ -17,6 +17,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getCompleteProfile, updateCompleteProfile } from '../../lib/api/vendor';
+import { logout } from '../../lib/api/auth';
 import { showImagePickerOptions } from '../../lib/utils/permissions';
 
 
@@ -577,14 +578,38 @@ const ProfileManagement = () => {
                     text: 'Logout',
                     onPress: async () => {
                       try {
-                        await AsyncStorage.removeItem('isVendorLoggedIn');
-                        await AsyncStorage.removeItem('vendorData');
+                        console.info('🚪 Initiating logout...');
                         setShowAlert(false);
-                        router.replace('/vendor/register');
+                        setIsLoading(true);
+                        
+                        // Use the logout API function
+                        await logout();
+                        
+                        console.info('✅ Logout successful, redirecting to login...');
+                        
+                        // Navigate to login/register screen
+                        router.replace('/auth/Login');
                       } catch (error) {
-                        console.error('Error during logout:', error);
-                        setShowAlert(false);
-                        router.replace('/vendor/register');
+                        console.error('❌ Error during logout:', error);
+                        
+                        // Show error but still redirect to login
+                        setAlertConfig({
+                          title: 'Logout Error',
+                          message: 'There was an error during logout, but your session has been cleared.',
+                          type: 'warning',
+                          buttons: [
+                            { 
+                              text: 'OK', 
+                              onPress: () => {
+                                setShowAlert(false);
+                                router.replace('/auth/Login');
+                              }
+                            }
+                          ]
+                        });
+                        setShowAlert(true);
+                      } finally {
+                        setIsLoading(false);
                       }
                     }
                   }
