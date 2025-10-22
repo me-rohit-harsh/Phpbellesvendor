@@ -17,6 +17,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getCompleteProfile, updateCompleteProfile } from '../../lib/api/vendor';
+import { logout } from '../../lib/api/auth';
 import { showImagePickerOptions } from '../../lib/utils/permissions';
 
 
@@ -577,14 +578,31 @@ const ProfileManagement = () => {
                     text: 'Logout',
                     onPress: async () => {
                       try {
-                        await AsyncStorage.removeItem('isVendorLoggedIn');
-                        await AsyncStorage.removeItem('vendorData');
+                        console.info('🚪 Initiating logout...');
                         setShowAlert(false);
-                        router.replace('/vendor/register');
+                        setIsLoading(true);
+                        
+                        // Use the logout API function
+                        const result = await logout();
+                        
+                        console.info('✅ Logout complete:', result);
+                        console.info('👉 Redirecting to login screen...');
+                        
+                        // Small delay to ensure state is cleared
+                        setTimeout(() => {
+                          router.replace('/auth/Login');
+                        }, 100);
                       } catch (error) {
-                        console.error('Error during logout:', error);
-                        setShowAlert(false);
-                        router.replace('/vendor/register');
+                        console.error('❌ Error during logout:', error);
+                        
+                        // Logout function now always returns success
+                        // Still navigate to login even if there's an error
+                        console.info('👉 Redirecting to login screen after error...');
+                        setTimeout(() => {
+                          router.replace('/auth/Login');
+                        }, 100);
+                      } finally {
+                        setIsLoading(false);
                       }
                     }
                   }

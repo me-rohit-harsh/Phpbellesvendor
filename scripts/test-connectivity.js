@@ -3,9 +3,11 @@
 /**
  * Network Connectivity Test Script for Physical Devices
  * This script helps diagnose network issues when adding food items fails
+ * Updated to use native fetch API instead of axios
  */
 
-const axios = require('axios');
+const https = require('https');
+const http = require('http');
 
 const colors = {
   reset: '\x1b[0m',
@@ -29,12 +31,13 @@ async function testBasicConnectivity() {
   
   try {
     const startTime = Date.now();
-    const response = await axios.get(`${API_BASE_URL}/health`, {
-      timeout: 15000,
+    const response = await fetch(`${API_BASE_URL}/health`, {
+      method: 'GET',
       headers: {
         'User-Agent': 'PHPBells-Vendor-App/1.0 (Node.js Test)',
         'Accept': 'application/json'
-      }
+      },
+      signal: AbortSignal.timeout(15000)
     });
     const responseTime = Date.now() - startTime;
     
@@ -45,7 +48,6 @@ async function testBasicConnectivity() {
   } catch (error) {
     log(`❌ API Connection: FAILED`, colors.red);
     log(`❌ Error: ${error.message}`, colors.red);
-    if (error.code) log(`❌ Code: ${error.code}`, colors.red);
     return false;
   }
 }
@@ -112,18 +114,19 @@ async function testAPIEndpoint() {
   log('\n🔍 Testing API Endpoint...', colors.cyan);
   
   try {
-    const response = await axios.get(`${API_BASE_URL}/vendor/menu-categories`, {
-      timeout: 15000,
+    const response = await fetch(`${API_BASE_URL}/vendor/menu-categories`, {
+      method: 'GET',
       headers: {
         'User-Agent': 'PHPBells-Vendor-App/1.0 (Node.js Test)',
         'Accept': 'application/json',
         'Authorization': 'Bearer test-token'
-      }
+      },
+      signal: AbortSignal.timeout(15000)
     });
     
     log(`✅ API Endpoint: ACCESSIBLE`, colors.green);
     log(`📡 Status: ${response.status}`, colors.green);
-    log(`📄 Content-Type: ${response.headers['content-type']}`, colors.green);
+    log(`📄 Content-Type: ${response.headers.get('content-type')}`, colors.green);
     return true;
   } catch (error) {
     if (error.response) {

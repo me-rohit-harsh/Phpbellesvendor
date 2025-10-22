@@ -79,6 +79,15 @@ const Dashboard = ({ businessData }) => {
 
   const menuItems = [
     {
+      id: 'test-upload',
+      title: '🧪 Test Upload',
+      subtitle: 'Test image upload API',
+      icon: 'cloud-upload-outline',
+      color: '#FF6B35',
+      route: '/business/test-upload',
+      badge: 'DEBUG'
+    },
+    {
       id: 'menu',
       title: 'Menu Management',
       subtitle: 'Configure menu settings',
@@ -352,6 +361,11 @@ const Dashboard = ({ businessData }) => {
                 </View>
                 <Text style={styles.menuTitle}>{item.title}</Text>
                 <Text style={styles.menuSubtitle}>{item.subtitle}</Text>
+                {item.badge && (
+                  <View style={styles.badge}>
+                    <Text style={styles.badgeText}>{item.badge}</Text>
+                  </View>
+                )}
               </TouchableOpacity>
             ))}
           </ScrollView>
@@ -809,6 +823,21 @@ const styles = StyleSheet.create({
     padding: 8,
     borderRadius: 6,
     backgroundColor: '#F3F4F6',
+  },
+  badge: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    backgroundColor: '#FF6B35',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  badgeText: {
+    fontSize: 9,
+    color: '#FFFFFF',
+    fontFamily: 'MyFont-Bold',
+    letterSpacing: 0.5,
   },
 });
 

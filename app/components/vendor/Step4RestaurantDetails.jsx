@@ -30,74 +30,88 @@ const Step4RestaurantDetails = ({ onNext, onBack, formData, setFormData }) => {
     const fetchData = async () => {
       try {
         setLoading(true);
-        console.info('Starting to fetch vendor types and food types...');
+        console.info('🔍 Starting to fetch vendor types and food types...');
         
         // Fetch vendor types and food types in parallel
-        const [vendorTypesData, foodTypesData] = await Promise.all([
+        const [vendorTypesResponse, foodTypesResponse] = await Promise.all([
           getVendorTypes(),
           getFoodTypes()
         ]);
 
-        console.info('Received vendor types:', vendorTypesData);
-        console.info('Received food types:', foodTypesData);
+        console.info('📦 Received vendor types response:', vendorTypesResponse);
+        console.info('📦 Received food types response:', foodTypesResponse);
 
         // Handle vendor types response
-        if (vendorTypesData && Array.isArray(vendorTypesData.data)) {
-          setVendorTypes([{ id: null, name: 'Select Vendor Type', icon: '' }, ...vendorTypesData.data]);
-          console.info('Set vendor types successfully');
-        } else if (vendorTypesData && Array.isArray(vendorTypesData)) {
-          // If the response is directly an array
-          setVendorTypes([{ id: null, name: 'Select Vendor Type', icon: '' }, ...vendorTypesData]);
-          console.info('Set vendor types successfully (direct array)');
+        if (vendorTypesResponse) {
+          let vendorTypesArray = [];
+          
+          // Try different response structures
+          if (vendorTypesResponse.data && Array.isArray(vendorTypesResponse.data)) {
+            vendorTypesArray = vendorTypesResponse.data;
+          } else if (Array.isArray(vendorTypesResponse)) {
+            vendorTypesArray = vendorTypesResponse;
+          } else if (vendorTypesResponse.vendor_types && Array.isArray(vendorTypesResponse.vendor_types)) {
+            vendorTypesArray = vendorTypesResponse.vendor_types;
+          }
+          
+          if (vendorTypesArray.length > 0) {
+            // Add placeholder option at the beginning
+            setVendorTypes([{ id: null, name: 'Select Vendor Type', icon: '' }, ...vendorTypesArray]);
+            console.info('✅ Set vendor types successfully:', vendorTypesArray.length, 'types loaded');
+          } else {
+            console.warn('⚠️ No vendor types found in response');
+            setVendorTypes([{ id: null, name: 'Select Vendor Type', icon: '' }]);
+          }
         } else {
-          console.warn('Unexpected vendor types response format:', vendorTypesData);
+          console.warn('⚠️ Empty vendor types response');
+          setVendorTypes([{ id: null, name: 'Select Vendor Type', icon: '' }]);
         }
 
         // Handle food types response
-        if (foodTypesData && Array.isArray(foodTypesData.data)) {
-          setCuisineTypes(foodTypesData.data);
-          console.info('Set food types successfully');
-        } else if (foodTypesData && Array.isArray(foodTypesData)) {
-          // If the response is directly an array
-          setCuisineTypes(foodTypesData);
-          console.info('Set food types successfully (direct array)');
+        if (foodTypesResponse) {
+          let foodTypesArray = [];
+          
+          // Try different response structures
+          if (foodTypesResponse.data && Array.isArray(foodTypesResponse.data)) {
+            foodTypesArray = foodTypesResponse.data;
+          } else if (Array.isArray(foodTypesResponse)) {
+            foodTypesArray = foodTypesResponse;
+          } else if (foodTypesResponse.food_types && Array.isArray(foodTypesResponse.food_types)) {
+            foodTypesArray = foodTypesResponse.food_types;
+          }
+          
+          if (foodTypesArray.length > 0) {
+            setCuisineTypes(foodTypesArray);
+            console.info('✅ Set food types successfully:', foodTypesArray.length, 'types loaded');
+          } else {
+            console.warn('⚠️ No food types found in response');
+            setCuisineTypes([]);
+          }
         } else {
-          console.warn('Unexpected food types response format:', foodTypesData);
+          console.warn('⚠️ Empty food types response');
+          setCuisineTypes([]);
         }
 
       } catch (error) {
-        console.error('Error fetching data:', error);
-        console.error('Error details:', {
+        console.error('❌ Error fetching data:', error);
+        console.error('❌ Error details:', {
           message: error.message,
-          code: error.code,
-          response: error.response?.data,
-          status: error.response?.status
+          status: error.status,
+          response: error.response
         });
         
-        showValidationError('Network Error', 'Failed to load vendor and food types. Using offline data.');
+        // Show error to user
+        showValidationError(
+          'Unable to Load Data', 
+          'Failed to load vendor types and food types. Please check your internet connection and try again.'
+        );
         
-        // Fallback to hardcoded data
-        console.info('Using fallback data for cuisine types and vendor types');
-        setCuisineTypes([
-          { id: 1, name: 'North Indian', icon: '🍛' },
-          { id: 2, name: 'South Indian', icon: '🍲' },
-          { id: 3, name: 'Chinese', icon: '🥢' },
-          { id: 4, name: 'Italian', icon: '🍕' },
-          { id: 6, name: 'Mexican', icon: '🌮' },
-          { id: 8, name: 'Others', icon: '🍽️' }
-        ]);
-        
-        setVendorTypes([
-          { id: null, name: 'Select Vendor Type', icon: '' },
-          { id: 1, name: 'Restaurant', icon: '🍽️' },
-          { id: 4, name: 'Cloud Kitchen', icon: '👨‍🍳' },
-          { id: 5, name: 'Food Truck', icon: '🚚' },
-          { id: 2, name: 'Cafe', icon: '☕' },
-          { id: 3, name: 'Bakery', icon: '🍞' }
-        ]);
+        // Set empty arrays - no offline fallback
+        setCuisineTypes([]);
+        setVendorTypes([{ id: null, name: 'Select Vendor Type', icon: '' }]);
       } finally {
         setLoading(false);
-        console.info('Finished loading vendor and food types');
+        console.info('✅ Finished loading vendor and food types');
       }
     };
 
@@ -202,6 +216,12 @@ const Step4RestaurantDetails = ({ onNext, onBack, formData, setFormData }) => {
             <ActivityIndicator size="small" color="#020A66" />
             <Text style={styles.loadingText}>Loading cuisine types...</Text>
           </View>
+        ) : cuisineTypes.length === 0 ? (
+          <View style={styles.emptyContainer}>
+            <Ionicons name="alert-circle-outline" size={40} color="#999" />
+            <Text style={styles.emptyText}>No cuisine types available</Text>
+            <Text style={styles.emptySubtext}>Please check your internet connection and try again</Text>
+          </View>
         ) : (
           <View style={styles.cuisineContainer}>
             {cuisineTypes.map((cuisine) => (
@@ -225,56 +245,71 @@ const Step4RestaurantDetails = ({ onNext, onBack, formData, setFormData }) => {
         )}
 
         <Text style={styles.label}>Type of Vendor</Text>
-        <TouchableOpacity
-          style={styles.dropdown}
-          onPress={() => setShowVendorDropdown(!showVendorDropdown)}
-        >
-          <Text style={[
-            styles.dropdownText,
-            !vendorType || vendorType === 'Select Vendor Type' ? styles.placeholderText : styles.selectedText
-          ]}>
-            {vendorType || 'Select Vendor Type'}
-          </Text>
-          <Ionicons 
-            name={showVendorDropdown ? "chevron-up" : "chevron-down"} 
-            size={20} 
-            color="#666" 
-          />
-        </TouchableOpacity>
+        {loading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="small" color="#020A66" />
+            <Text style={styles.loadingText}>Loading vendor types...</Text>
+          </View>
+        ) : vendorTypes.length <= 1 ? (
+          <View style={styles.emptyContainer}>
+            <Ionicons name="alert-circle-outline" size={40} color="#999" />
+            <Text style={styles.emptyText}>No vendor types available</Text>
+            <Text style={styles.emptySubtext}>Please check your internet connection and try again</Text>
+          </View>
+        ) : (
+          <>
+            <TouchableOpacity
+              style={styles.dropdown}
+              onPress={() => setShowVendorDropdown(!showVendorDropdown)}
+            >
+              <Text style={[
+                styles.dropdownText,
+                !vendorType || vendorType === 'Select Vendor Type' ? styles.placeholderText : styles.selectedText
+              ]}>
+                {vendorType || 'Select Vendor Type'}
+              </Text>
+              <Ionicons 
+                name={showVendorDropdown ? "chevron-up" : "chevron-down"} 
+                size={20} 
+                color="#666" 
+              />
+            </TouchableOpacity>
 
-        {showVendorDropdown && !loading && (
-            <View style={styles.dropdownContainer}>
-              <ScrollView 
-                style={styles.dropdownList}
-                showsVerticalScrollIndicator={true}
-                nestedScrollEnabled={true}
-                bounces={false}
-                keyboardShouldPersistTaps="handled"
-                contentContainerStyle={styles.dropdownContent}
-              >
-                {vendorTypes.slice(1).map((type, index) => (
-                  <TouchableOpacity
-                    key={type.id}
-                    style={[
-                      styles.dropdownItem,
-                      index === vendorTypes.slice(1).length - 1 && styles.lastDropdownItem
-                    ]}
-                    onPress={() => {
-                      setVendorType(type.name);
-                      setVendorTypeId(type.id);
-                      setShowVendorDropdown(false);
-                    }}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={styles.dropdownItemText}>{type.icon} {type.name}</Text>
-                    {vendorType === type.name && (
-                      <Ionicons name="checkmark" size={20} color="#020A66" />
-                    )}
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-            </View>
-          )}
+            {showVendorDropdown && (
+              <View style={styles.dropdownContainer}>
+                <ScrollView 
+                  style={styles.dropdownList}
+                  showsVerticalScrollIndicator={true}
+                  nestedScrollEnabled={true}
+                  bounces={false}
+                  keyboardShouldPersistTaps="handled"
+                  contentContainerStyle={styles.dropdownContent}
+                >
+                  {vendorTypes.slice(1).map((type, index) => (
+                    <TouchableOpacity
+                      key={type.id}
+                      style={[
+                        styles.dropdownItem,
+                        index === vendorTypes.slice(1).length - 1 && styles.lastDropdownItem
+                      ]}
+                      onPress={() => {
+                        setVendorType(type.name);
+                        setVendorTypeId(type.id);
+                        setShowVendorDropdown(false);
+                      }}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={styles.dropdownItemText}>{type.icon} {type.name}</Text>
+                      {vendorType === type.name && (
+                        <Ionicons name="checkmark" size={20} color="#020A66" />
+                      )}
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+            )}
+          </>
+        )}
       </View>
 
       <View style={styles.buttonContainer}>
@@ -457,6 +492,31 @@ const styles = StyleSheet.create({
   loadingText: {
     fontSize: 14,
     color: '#666',
+  },
+  emptyContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 40,
+    paddingHorizontal: 20,
+    backgroundColor: '#F9FAFB',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+    marginTop: 10,
+  },
+  emptyText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#666',
+    marginTop: 10,
+    fontFamily: 'MyFont-SemiBold',
+  },
+  emptySubtext: {
+    fontSize: 13,
+    color: '#999',
+    marginTop: 5,
+    textAlign: 'center',
+    fontFamily: 'MyFont-Regular',
   },
 });
 

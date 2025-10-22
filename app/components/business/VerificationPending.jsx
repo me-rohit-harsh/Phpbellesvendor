@@ -6,32 +6,60 @@ import {
   SafeAreaView,
   TouchableOpacity,
   Image,
+  ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { logout } from '../../../lib/api/auth';
 
 const VerificationPending = ({ vendorData }) => {
   const router = useRouter();
+  const [isLoggingOut, setIsLoggingOut] = React.useState(false);
 
   const handleLogout = async () => {
-    try {
-      // Clear all authentication data from AsyncStorage
-      const AsyncStorage = require('@react-native-async-storage/async-storage').default;
-      await AsyncStorage.multiRemove([
-        'auth_token',
-        'authToken',
-        'isVendorLoggedIn',
-        'vendorData'
-      ]);
-      console.info('All auth data cleared');
-      
-      // Navigate to vendor registration screen
-      router.replace('/vendor/register');
-    } catch (error) {
-      console.error('Error during logout:', error);
-      // Fallback: still navigate to registration even if clearing fails
-      router.replace('/vendor/register');
-    }
+    Alert.alert(
+      'Confirm Logout',
+      'Are you sure you want to logout? You will need to login again to check your verification status.',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Logout',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              console.info('🚪 Initiating logout from VerificationPending...');
+              setIsLoggingOut(true);
+              
+              // Use the logout API function
+              const result = await logout();
+              
+              console.info('✅ Logout complete:', result);
+              console.info('👉 Redirecting to login screen...');
+              
+              // Small delay to ensure state is cleared
+              setTimeout(() => {
+                router.replace('/auth/Login');
+              }, 100);
+            } catch (error) {
+              console.error('❌ Error during logout:', error);
+              
+              // Logout function now always returns success
+              // Still navigate to login
+              console.info('👉 Redirecting to login screen after error...');
+              setTimeout(() => {
+                router.replace('/auth/Login');
+              }, 100);
+            } finally {
+              setIsLoggingOut(false);
+            }
+          },
+        },
+      ]
+    );
   };
 
   const handleContactSupport = () => {
@@ -42,9 +70,19 @@ const VerificationPending = ({ vendorData }) => {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-          <Ionicons name="log-out-outline" size={24} color="#EF4444" />
-          <Text style={styles.logoutText}>Logout</Text>
+        <TouchableOpacity 
+          style={styles.logoutButton} 
+          onPress={handleLogout}
+          disabled={isLoggingOut}
+        >
+          {isLoggingOut ? (
+            <ActivityIndicator color="#EF4444" size="small" />
+          ) : (
+            <>
+              <Ionicons name="log-out-outline" size={24} color="#EF4444" />
+              <Text style={styles.logoutText}>Logout</Text>
+            </>
+          )}
         </TouchableOpacity>
       </View>
 
