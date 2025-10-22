@@ -180,9 +180,10 @@ dependencies {
         }
     }
 
-    if (hermesEnabled.toBoolean()) {
-        implementation("com.facebook.react:hermes-android")
-    } else {
-        implementation jscFlavor
-    }
+    // if (hermesEnabled.toBoolean()) {
+    //     implementation("com.facebook.react:hermes-android")
+    // } else {
+    //     implementation jscFlavor
+    // }
+    def hermesEnabled = false
 }
