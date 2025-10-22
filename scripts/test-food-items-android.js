@@ -3,9 +3,8 @@
 /**
  * Specific test script for Android food items network issue
  * This script helps diagnose the specific network error with food items on Android
+ * Updated to use native fetch API instead of axios
  */
-
-const axios = require('axios');
 
 const colors = {
   reset: '\x1b[0m',
@@ -29,29 +28,26 @@ async function testFoodItemsEndpoint() {
   
   try {
     const startTime = Date.now();
-    const response = await axios.get(`${API_BASE_URL}/vendor/menu-items`, {
-      timeout: 30000,
+    const response = await fetch(`${API_BASE_URL}/vendor/menu-items`, {
+      method: 'GET',
       headers: {
         'User-Agent': 'PhpBellVendor/1.0 (Android)',
         'Accept': 'application/json',
         'Connection': 'keep-alive'
-      }
+      },
+      signal: AbortSignal.timeout(30000)
     });
     const responseTime = Date.now() - startTime;
+    const data = await response.json();
     
     log(`✅ Food Items API Connection: SUCCESS`, colors.green);
     log(`📡 Response Time: ${responseTime}ms`, colors.green);
     log(`🌐 Status: ${response.status}`, colors.green);
-    log(`📦 Items Count: ${Array.isArray(response.data) ? response.data.length : 'Unknown'}`, colors.green);
+    log(`📦 Items Count: ${Array.isArray(data) ? data.length : 'Unknown'}`, colors.green);
     return true;
   } catch (error) {
     log(`❌ Food Items API Connection: FAILED`, colors.red);
     log(`❌ Error: ${error.message}`, colors.red);
-    if (error.code) log(`❌ Code: ${error.code}`, colors.red);
-    if (error.response) {
-      log(`❌ Response Status: ${error.response.status}`, colors.red);
-      log(`❌ Response Data: ${JSON.stringify(error.response.data)}`, colors.red);
-    }
     return false;
   }
 }
@@ -62,40 +58,38 @@ async function testWithDifferentConfigurations() {
   const configs = [
     {
       name: 'Default Configuration',
-      config: {
-        timeout: 15000,
-        headers: {
-          'Accept': 'application/json'
-        }
+      timeout: 15000,
+      headers: {
+        'Accept': 'application/json'
       }
     },
     {
       name: 'Android-Specific Configuration',
-      config: {
-        timeout: 30000,
-        headers: {
-          'Accept': 'application/json',
-          'User-Agent': 'PhpBellVendor/1.0 (Android)',
-          'Connection': 'keep-alive'
-        }
+      timeout: 30000,
+      headers: {
+        'Accept': 'application/json',
+        'User-Agent': 'PhpBellVendor/1.0 (Android)',
+        'Connection': 'keep-alive'
       }
     },
     {
       name: 'Extended Timeout Configuration',
-      config: {
-        timeout: 45000,
-        headers: {
-          'Accept': 'application/json',
-          'User-Agent': 'PhpBellVendor/1.0 (Android)'
-        }
+      timeout: 45000,
+      headers: {
+        'Accept': 'application/json',
+        'User-Agent': 'PhpBellVendor/1.0 (Android)'
       }
     }
   ];
   
-  for (const { name, config } of configs) {
+  for (const { name, timeout, headers } of configs) {
     log(`\n🔄 Testing with ${name}...`, colors.yellow);
     try {
-      const response = await axios.get(`${API_BASE_URL}/vendor/menu-items`, config);
+      const response = await fetch(`${API_BASE_URL}/vendor/menu-items`, {
+        method: 'GET',
+        headers,
+        signal: AbortSignal.timeout(timeout)
+      });
       log(`✅ ${name}: SUCCESS`, colors.green);
       log(`📡 Status: ${response.status}`, colors.green);
     } catch (error) {
