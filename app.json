@@ -24,6 +24,7 @@
         "NSDocumentsFolderUsageDescription": "This app needs access to your documents to upload files.",
         "NSLocationWhenInUseUsageDescription": "This app needs access to your location to help you select your restaurant location.",
         "NSLocationAlwaysAndWhenInUseUsageDescription": "This app needs access to your location to help you select your restaurant location.",
+        "NSUserNotificationsUsageDescription": "This app needs to send you notifications about orders and important updates.",
         "ITSAppUsesNonExemptEncryption": false
       }
     },
@@ -43,8 +44,12 @@
         "android.permission.ACCESS_COARSE_LOCATION",
         "android.permission.RECORD_AUDIO",
         "android.permission.INTERNET",
-        "android.permission.ACCESS_NETWORK_STATE"
+        "android.permission.ACCESS_NETWORK_STATE",
+        "android.permission.POST_NOTIFICATIONS",
+        "android.permission.VIBRATE",
+        "android.permission.RECEIVE_BOOT_COMPLETED"
       ],
+      "googleServicesFile": "./android/app/google-services.json",
       "softwareKeyboardLayoutMode": "pan"
     },
     "web": {
@@ -57,7 +62,16 @@
       "expo-location",
       "expo-font",
       "expo-av",
-      "expo-updates"
+      "expo-updates",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icons/android/light/mipmap-xxxhdpi/ic_launcher.png",
+          "color": "#ffffff",
+          "sounds": [],
+          "mode": "production"
+        }
+      ]
     ],
     "updates": {
       "enabled": true,

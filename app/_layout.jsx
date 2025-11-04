@@ -4,6 +4,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { useEffect, useState, useRef } from 'react';
 import { GlobalToast, ToastManager } from './components/NotificationToast';
 import PermissionHandler from './components/PermissionHandler';
+import useFCMNotifications from '../hooks/useFCMNotifications';
 
 // Keep the splash screen visible while we fetch resources
 SplashScreen.preventAutoHideAsync();
@@ -13,6 +14,17 @@ export default function RootLayout() {
   const [appReady, setAppReady] = useState(false);
   const [permissionsGranted, setPermissionsGranted] = useState(false);
   const toastRef = useRef(null);
+
+  // Initialize FCM notifications
+  useFCMNotifications({
+    autoRegister: true,
+    onNotificationReceived: (notification) => {
+      console.info('🔔 Global notification handler:', notification);
+    },
+    onNotificationTapped: (response) => {
+      console.info('🔔 Global notification tap handler:', response);
+    }
+  });
 
   useEffect(() => {
     // Initialize toast manager

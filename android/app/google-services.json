@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "340766225001",
+    "project_id": "phpbells-110d1",
+    "storage_bucket": "phpbells-110d1.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:340766225001:android:5a74195338943d504068f8",
+        "android_client_info": {
+          "package_name": "com.shashankgupta01.phpbell"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAXmR9Kq_Y7ScA6wPd2WWT_fYObeu-7e_E"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:340766225001:android:1a9ac802cd5255f14068f8",
+        "android_client_info": {
+          "package_name": "com.shashankgupta01.phpbellforbusiness"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAXmR9Kq_Y7ScA6wPd2WWT_fYObeu-7e_E"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
