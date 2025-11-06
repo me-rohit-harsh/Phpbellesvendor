@@ -2,7 +2,7 @@ const { getDefaultConfig } = require('expo/metro-config');
 
 const config = getDefaultConfig(__dirname);
 
-// Disable package.json exports to avoid compatibility issues
-config.resolver.unstable_enablePackageExports = false;
+// Ensure package.json exports are enabled for modern packages like expo-router
+config.resolver.unstable_enablePackageExports = true;
 
 module.exports = config;
