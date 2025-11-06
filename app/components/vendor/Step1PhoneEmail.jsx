@@ -207,7 +207,7 @@ const Step1PhoneEmail = ({ formData, setFormData, onNext }) => {
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>E-mail (Optional)</Text>
+            <Text style={styles.label}>E-mail</Text>
             <TextInput
               style={styles.input}
               placeholder="Enter Your e-mail"

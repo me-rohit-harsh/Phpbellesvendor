@@ -586,20 +586,20 @@ const ProfileManagement = () => {
                         const result = await logout();
                         
                         console.info('✅ Logout complete:', result);
-                        console.info('👉 Redirecting to login screen...');
+                        console.info('👉 Redirecting to registration screen...');
                         
                         // Small delay to ensure state is cleared
                         setTimeout(() => {
-                          router.replace('/auth/Login');
+                          router.replace('/vendor/register');
                         }, 100);
                       } catch (error) {
                         console.error('❌ Error during logout:', error);
                         
                         // Logout function now always returns success
-                        // Still navigate to login even if there's an error
-                        console.info('👉 Redirecting to login screen after error...');
+                        // Still navigate to registration even if there's an error
+                        console.info('👉 Redirecting to registration screen after error...');
                         setTimeout(() => {
-                          router.replace('/auth/Login');
+                          router.replace('/vendor/register');
                         }, 100);
                       } finally {
                         setIsLoading(false);

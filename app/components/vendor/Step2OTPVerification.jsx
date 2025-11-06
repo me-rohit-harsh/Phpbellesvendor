@@ -349,7 +349,13 @@ const Step2OTPVerification = ({ formData, setFormData, onNext, onBack }) => {
       {/* OTP Content */}
       <View style={styles.content}>
         <Text style={styles.title}>We have sent an OTP on</Text>
-        <Text style={styles.phoneNumber}>{formData.phoneNumber}</Text>
+        <View style={styles.phoneRow}>
+          <Text style={styles.phoneNumber}>{formData.phoneNumber}</Text>
+          <TouchableOpacity style={styles.editButton} onPress={onBack}>
+            <Ionicons name="create-outline" size={18} color="#4F46E5" />
+            <Text style={styles.editText}>Edit</Text>
+          </TouchableOpacity>
+        </View>
 
         {/* OTP Input Boxes */}
         <Animated.View 
@@ -475,7 +481,26 @@ const styles = StyleSheet.create({
     fontFamily: 'MyFont-Bold',
     color: '#020A66',
     textAlign: 'center',
+    marginBottom: 0,
+  },
+  phoneRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
     marginBottom: 40,
+  },
+  editButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginLeft: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  editText: {
+    marginLeft: 4,
+    fontSize: 14,
+    fontFamily: 'MyFont-Medium',
+    color: '#4F46E5',
   },
   otpContainer: {
     flexDirection: 'row',

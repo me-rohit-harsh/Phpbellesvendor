@@ -42,16 +42,16 @@ const VerificationPending = ({ vendorData }) => {
               
               // Small delay to ensure state is cleared
               setTimeout(() => {
-                router.replace('/auth/Login');
+                router.replace('/vendor/register');
               }, 100);
             } catch (error) {
               console.error('❌ Error during logout:', error);
               
               // Logout function now always returns success
-              // Still navigate to login
-              console.info('👉 Redirecting to login screen after error...');
+              // Still navigate to registration
+              console.info('👉 Redirecting to registration screen after error...');
               setTimeout(() => {
-                router.replace('/auth/Login');
+                router.replace('/vendor/register');
               }, 100);
             } finally {
               setIsLoggingOut(false);
