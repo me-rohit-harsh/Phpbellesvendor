@@ -136,6 +136,14 @@ const Dashboard = ({ businessData }) => {
       route: '/business/offers'
     },
     {
+      id: 'coupons',
+      title: 'Coupons',
+      subtitle: 'Manage discount codes',
+      icon: 'pricetag-outline',
+      color: '#0F9D58',
+      route: '/vendor/coupons'
+    },
+    {
       id: 'profile',
       title: 'Business Profile',
       subtitle: 'Update details',

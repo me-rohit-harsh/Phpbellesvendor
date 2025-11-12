@@ -86,6 +86,6 @@
     },
     "owner": "shashankgupta01",
     "runtimeVersion": "1.0.2",
-    "jsEngine": "jsc"
+    "jsEngine": "hermes"
   }
 }
