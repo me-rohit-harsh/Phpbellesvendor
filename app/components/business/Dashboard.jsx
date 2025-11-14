@@ -16,6 +16,9 @@ import CustomAlert from '../CustomAlert';
 import { toggleVendorStatus, getVendorStatus } from '../../../lib/api';
 import { useDashboardStats } from '../../../hooks/useDashboardStats';
 import { useRecentActivity } from '../../../hooks/useRecentActivity';
+import { getVendorOrders } from '../../../lib/api/vendorOrders';
+import OrderCard from '../vendor/OrderCard';
+import { ToastManager } from '../NotificationToast';
 
 const Dashboard = ({ businessData }) => {
   const router = useRouter();
@@ -23,6 +26,9 @@ const Dashboard = ({ businessData }) => {
   const [isRestaurantOpen, setIsRestaurantOpen] = useState(true);
   const [isToggling, setIsToggling] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [orders, setOrders] = useState([]);
+  const [ordersLoading, setOrdersLoading] = useState(false);
+  const [ordersError, setOrdersError] = useState(null);
   
   const [showAlert, setShowAlert] = useState(false);
   const [alertConfig, setAlertConfig] = useState({
@@ -48,6 +54,38 @@ const Dashboard = ({ businessData }) => {
     limit: 5, // Show last 5 activities
     autoRefresh: true
   });
+
+  const parseOrdersList = (data) => {
+    if (!data) return [];
+    if (Array.isArray(data)) return data;
+    if (Array.isArray(data?.data?.data)) return data.data.data;
+    if (Array.isArray(data?.data)) return data.data;
+    if (Array.isArray(data?.items)) return data.items;
+    return [];
+  };
+
+  const fetchOrders = useCallback(async () => {
+    try {
+      setOrdersLoading(true);
+      setOrdersError(null);
+      const res = await getVendorOrders();
+      const list = parseOrdersList(res);
+      const filtered = list.filter((item) => {
+        const status = item?.status ?? item?.order_status;
+        return ['pending', 'accepted_by_vendor', 'running', 'ready_for_pickup'].includes(status);
+      });
+      setOrders(filtered);
+    } catch (e) {
+      setOrdersError(e?.message || 'Failed to load orders');
+      ToastManager.error('Failed to load orders');
+    } finally {
+      setOrdersLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchOrders();
+  }, [fetchOrders]);
 
   const handleToggleStatus = async () => {
     if (isToggling) return; // Prevent multiple calls
@@ -186,11 +224,12 @@ const Dashboard = ({ businessData }) => {
     setRefreshing(true);
     Promise.all([
       refreshStats(),
-      refreshActivities()
+      refreshActivities(),
+      fetchOrders()
     ]).finally(() => {
       setRefreshing(false);
     });
-  }, [refreshStats, refreshActivities]);
+  }, [refreshStats, refreshActivities, fetchOrders]);
 
   const handleQuickAction = (action) => {
     switch (action) {
@@ -447,6 +486,56 @@ const Dashboard = ({ businessData }) => {
               ))
             )}
           </View>
+        </View>
+
+        <View style={styles.menuContainer}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Orders</Text>
+            <TouchableOpacity onPress={() => router.push('/vendor/orders')}>
+              <Text style={styles.seeAllText}>See All</Text>
+            </TouchableOpacity>
+          </View>
+
+          {ordersLoading ? (
+            <View style={styles.errorContainer}>
+              <ActivityIndicator size="large" color="#020A66" />
+              <Text style={styles.activityLoadingText}>Loading orders...</Text>
+            </View>
+          ) : ordersError ? (
+            <View style={styles.errorContainer}>
+              <Ionicons name="alert-circle" size={24} color="#EF4444" />
+              <Text style={styles.errorText}>{ordersError}</Text>
+              <TouchableOpacity onPress={fetchOrders} style={styles.retryButton}>
+                <Text style={styles.retryText}>Tap to retry</Text>
+              </TouchableOpacity>
+            </View>
+          ) : orders.length === 0 ? (
+            <View style={styles.activityEmptyContainer}>
+              <Ionicons name="cube-outline" size={32} color="#9CA3AF" />
+              <Text style={styles.activityEmptyText}>No orders yet</Text>
+            </View>
+          ) : (
+            <View style={{ gap: 12 }}>
+              {orders.map((item) => {
+                const id = item?.id ?? item?.order_id ?? item?.uuid;
+                const customerName = item?.customer_name ?? item?.user?.name ?? item?.customer?.name;
+                const total = item?.total ?? item?.grand_total ?? item?.amount;
+                const status = item?.status ?? item?.order_status;
+                const createdAt = item?.created_at ?? item?.createdAt ?? item?.date;
+                return (
+                  <OrderCard
+                    key={String(id)}
+                    id={id}
+                    customerName={customerName}
+                    total={total}
+                    status={status}
+                    created_at={createdAt}
+                    onPress={() => router.push(`/vendor/orders/${id}`)}
+                  />
+                );
+              })}
+            </View>
+          )}
         </View>
       </ScrollView>
       
