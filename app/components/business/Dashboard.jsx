@@ -116,15 +116,15 @@ const Dashboard = ({ businessData }) => {
   };
 
   const menuItems = [
-    {
-      id: 'test-upload',
-      title: '🧪 Test Upload',
-      subtitle: 'Test image upload API',
-      icon: 'cloud-upload-outline',
-      color: '#FF6B35',
-      route: '/business/test-upload',
-      badge: 'DEBUG'
-    },
+    // {
+    //   id: 'test-upload',
+    //   title: '🧪 Test Upload',
+    //   subtitle: 'Test image upload API',
+    //   icon: 'cloud-upload-outline',
+    //   color: '#FF6B35',
+    //   route: '/business/test-upload',
+    //   badge: 'DEBUG'
+    // },
     {
       id: 'menu',
       title: 'Menu Management',
