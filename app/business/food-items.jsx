@@ -779,7 +779,8 @@ const FoodItemsManagement = () => {
         allowsEditing: true,
         aspect: [4, 3],
         quality: 0.8,
-      }
+      },
+      'camera'
     );
   };
 
