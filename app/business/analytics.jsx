@@ -165,7 +165,12 @@ const Analytics = () => {
           <Ionicons name="arrow-back" size={24} color="#020A66" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Analytics</Text>
-        <View style={styles.placeholder} />
+        <TouchableOpacity 
+          style={styles.walletButton}
+          onPress={() => router.push('/vendor/wallet')}
+        >
+          <Ionicons name="wallet" size={20} color="#020A66" />
+        </TouchableOpacity>
       </View>
 
       {/* Period Selector */}
@@ -340,6 +345,12 @@ const styles = StyleSheet.create({
   },
   placeholder: {
     width: 40,
+  },
+  walletButton: {
+    padding: 8,
+    width: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   periodSelector: {
     flexDirection: 'row',

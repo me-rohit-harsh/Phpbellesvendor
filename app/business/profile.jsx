@@ -566,6 +566,14 @@ const ProfileManagement = () => {
         {/* Action Buttons */}
         <View style={styles.actionButtons}>
           <TouchableOpacity 
+            style={styles.primaryButton}
+            onPress={() => router.push('/vendor/wallet')}
+          >
+            <Ionicons name="wallet" size={20} color="#FFFFFF" />
+            <Text style={styles.primaryButtonText}>Wallet & Earnings</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity 
             style={styles.dangerButton}
             onPress={() => {
               setAlertConfig({
@@ -792,6 +800,22 @@ const styles = StyleSheet.create({
   actionButtons: {
     paddingHorizontal: 20,
     paddingBottom: 30,
+    gap: 12,
+  },
+  primaryButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#020A66',
+    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    gap: 8,
+  },
+  primaryButtonText: {
+    fontSize: 16,
+    fontFamily: 'MyFont-Bold',
+    color: '#FFFFFF',
   },
   dangerButton: {
     flexDirection: 'row',
