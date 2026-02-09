@@ -91,7 +91,7 @@ const OrderActionButtons = ({ orderId, status, onActionComplete }) => {
         </View>
       )}
 
-      {(['accepted_by_vendor', 'running', 'accepted', 'in_progress', 'processing'].includes(status)) && (
+      {(['accepted_by_vendor', 'running', 'accepted', 'in_progress', 'processing', 'preparing'].includes(status)) && (
         <View style={styles.row}>
           <PrimaryButton title="Ready for Pickup" onPress={handleReady} disabled={loading} icon="bag-check" />
         </View>
