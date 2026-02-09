@@ -14,7 +14,7 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import CustomAlert from '../CustomAlert';
 import { toggleVendorStatus, getVendorStatus } from '../../../lib/api';
-import { useDashboardStats } from '../../../hooks/useDashboardStats';
+import { useDashboardAPI } from '../../../hooks/useDashboardAPI';
 import { useRecentActivity } from '../../../hooks/useRecentActivity';
 import { getVendorOrders } from '../../../lib/api/vendorOrders';
 import OrderCard from '../vendor/OrderCard';
@@ -38,8 +38,11 @@ const Dashboard = ({ businessData }) => {
     buttons: []
   });
 
-  // Use the custom hook for dashboard statistics
-  const { stats, loading: statsLoading, error: statsError, refreshStats } = useDashboardStats();
+  // Use the new API-based custom hook for dashboard statistics
+  const { stats, loading: statsLoading, error: statsError, refreshStats } = useDashboardAPI({
+    autoRefresh: true,
+    refreshInterval: 30000
+  });
   
   // Use the custom hook for recent activities
   const { 
@@ -125,59 +128,59 @@ const Dashboard = ({ businessData }) => {
     //   route: '/business/test-upload',
     //   badge: 'DEBUG'
     // },
-    {
-      id: 'menu',
-      title: 'Menu Management',
-      subtitle: 'Configure menu settings',
-      icon: 'menu-outline',
-      color: '#10B981',
-      route: '/business/menu'
-    },
-    {
-      id: 'categories',
-      title: 'Categories',
-      subtitle: 'Organize menu items',
-      icon: 'grid-outline',
-      color: '#8B5CF6',
-      route: '/business/categories'
-    },
-    {
-      id: 'food-items',
-      title: 'Food Items',
-      subtitle: 'Manage your menu',
-      icon: 'restaurant-outline',
-      color: '#FF6B6B',
-      route: '/business/food-items'
-    },
-    {
-      id: 'stock',
-      title: 'Stock Management',
-      subtitle: 'Track inventory',
-      icon: 'cube-outline',
-      color: '#4ECDC4',
-      route: '/business/stock'
-    },
-    {
-      id: 'pricing',
-      title: 'Pricing',
-      subtitle: 'Set item prices',
-      icon: 'pricetag-outline',
-      color: '#45B7D1',
-      route: '/business/pricing'
-    },
-    {
-      id: 'offers',
-      title: 'Offers & Promotions',
-      subtitle: 'Create deals',
-      icon: 'gift-outline',
-      color: '#F7DC6F',
-      route: '/business/offers'
-    },
+    // {
+    //   id: 'menu',
+    //   title: 'Menu Management',
+    //   subtitle: 'Configure menu settings',
+    //   icon: 'menu-outline',
+    //   color: '#10B981',
+    //   route: '/business/menu'
+    // },
+    // {
+    //   id: 'categories',
+    //   title: 'Categories',
+    //   subtitle: 'Organize menu items',
+    //   icon: 'grid-outline',
+    //   color: '#8B5CF6',
+    //   route: '/business/categories'
+    // },
+    // {
+    //   id: 'food-items',
+    //   title: 'Food Items',
+    //   subtitle: 'Manage your menu',
+    //   icon: 'restaurant-outline',
+    //   color: '#FF6B6B',
+    //   route: '/business/food-items'
+    // },
+    // {
+    //   id: 'stock',
+    //   title: 'Stock Management',
+    //   subtitle: 'Track inventory',
+    //   icon: 'cube-outline',
+    //   color: '#4ECDC4',
+    //   route: '/business/stock'
+    // },
+    // {
+    //   id: 'pricing',
+    //   title: 'Pricing',
+    //   subtitle: 'Set item prices',
+    //   icon: 'pricetag-outline',
+    //   color: '#45B7D1',
+    //   route: '/business/pricing'
+    // },
+    // {
+    //   id: 'offers',
+    //   title: 'Offers & Promotions',
+    //   subtitle: 'Create deals',
+    //   icon: 'gift-outline',
+    //   color: '#F7DC6F',
+    //   route: '/business/offers'
+    // },
     {
       id: 'coupons',
       title: 'Coupons',
       subtitle: 'Manage discount codes',
-      icon: 'pricetag-outline',
+      icon: 'gift-outline',
       color: '#0F9D58',
       route: '/vendor/coupons'
     },
@@ -200,10 +203,38 @@ const Dashboard = ({ businessData }) => {
   ];
 
   const quickStats = [
-    { label: 'Total Items', value: statsLoading ? '...' : stats.totalItems.toString(), icon: 'restaurant', color: '#FF6B6B' },
-    { label: 'Categories', value: statsLoading ? '...' : stats.totalCategories.toString(), icon: 'grid', color: '#9B59B6' },
-    { label: 'Orders Today', value: stats.ordersToday.toString(), icon: 'bag', color: '#4ECDC4' },
-    { label: 'Revenue', value: stats.revenue, icon: 'cash', color: '#45B7D1' }
+    { 
+      label: 'Total Items', 
+      value: statsLoading ? '...' : stats.totalItems.toString(), 
+      icon: 'restaurant', 
+      color: '#FF6B6B',
+      route: '/business/food-items',
+      action: () => router.push('/business/food-items')
+    },
+    { 
+      label: 'Categories', 
+      value: statsLoading ? '...' : stats.totalCategories.toString(), 
+      icon: 'grid', 
+      color: '#9B59B6',
+      route: '/business/categories',
+      action: () => router.push('/business/categories')
+    },
+    { 
+      label: 'Orders Today', 
+      value: stats.ordersToday.toString(), 
+      icon: 'bag', 
+      color: '#4ECDC4',
+      route: '/vendor/orders',
+      action: () => router.push('/vendor/orders')
+    },
+    { 
+      label: 'Revenue', 
+      value: stats.revenue, 
+      icon: 'cash', 
+      color: '#45B7D1',
+      route: '/vendor/wallet',
+      action: () => router.push('/vendor/wallet')
+    }
   ];
 
   const handleMenuPress = (route) => {
@@ -319,7 +350,7 @@ const Dashboard = ({ businessData }) => {
         {/* Quick Stats */}
         <View style={styles.statsContainer}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Today's Overview</Text>
+            {/* <Text style={styles.sectionTitle}>Today's Overview</Text> */}
             {statsError && (
               <TouchableOpacity onPress={refreshStats} style={styles.refreshButton}>
                 <Ionicons name="refresh" size={20} color="#020A66" />
@@ -338,13 +369,18 @@ const Dashboard = ({ businessData }) => {
           ) : (
             <View style={styles.statsGrid}>
               {quickStats.map((stat, index) => (
-                <View key={index} style={styles.statCard}>
+                <TouchableOpacity 
+                  key={index} 
+                  style={styles.statCard}
+                  onPress={stat.action}
+                  activeOpacity={0.7}
+                >
                   <View style={[styles.statIcon, { backgroundColor: stat.color + '20' }]}>
                     <Ionicons name={stat.icon} size={24} color={stat.color} />
                   </View>
                   <Text style={styles.statValue}>{stat.value}</Text>
                   <Text style={styles.statLabel}>{stat.label}</Text>
-                </View>
+                </TouchableOpacity>
               ))}
             </View>
           )}
@@ -354,38 +390,56 @@ const Dashboard = ({ businessData }) => {
         <View style={styles.menuContainer}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Menu Management</Text>
-            <TouchableOpacity onPress={() => router.push('/business/food-items')}>
+            {/* <TouchableOpacity onPress={() => router.push('/business/food-items')}>
               <Text style={styles.seeAllText}>See All</Text>
-            </TouchableOpacity>
+            </TouchableOpacity> */}
           </View>
           
-          <View style={styles.menuGrid}>
-            <TouchableOpacity 
-              style={styles.menuCard}
-              onPress={() => router.push('/business/food-items')}
-            >
-              <View style={styles.menuCardContent}>
-                <Ionicons name="restaurant" size={24} color="#020A66" />
-                <Text style={styles.menuCardTitle}>Food Items</Text>
-                <Text style={styles.menuCardCount}>
-                  {statsLoading ? '...' : `${stats.totalItems} items`}
-                </Text>
-              </View>
-            </TouchableOpacity>
-            
-            <TouchableOpacity 
-              style={styles.menuCard}
-              onPress={() => router.push('/business/categories')}
-            >
-              <View style={styles.menuCardContent}>
-                <Ionicons name="pricetag" size={24} color="#10B981" />
-                <Text style={styles.menuCardTitle}>Categories</Text>
-                <Text style={styles.menuCardCount}>
-                  {statsLoading ? '...' : `${stats.totalCategories} categories`}
-                </Text>
-              </View>
-            </TouchableOpacity>
-          </View>
+          <ScrollView 
+            horizontal={true} 
+            showsHorizontalScrollIndicator={false}
+            style={styles.menuGridContainer}
+          >
+            <View style={styles.menuGrid}>
+              <TouchableOpacity 
+                style={styles.menuCard}
+                onPress={() => router.push('/business/menu')}
+              >
+                <View style={styles.menuCardContent}>
+                  <Ionicons name="menu" size={24} color="#020A66" />
+                  <Text style={styles.menuCardTitle}>Menu Details</Text>
+                  <Text style={styles.menuCardCount}>
+                   Manage Menu
+                  </Text>
+                </View>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={styles.menuCard}
+                onPress={() => router.push('/business/food-items')}
+              >
+                <View style={styles.menuCardContent}>
+                  <Ionicons name="restaurant" size={24} color="#020A66" />
+                  <Text style={styles.menuCardTitle}>Food Items</Text>
+                  <Text style={styles.menuCardCount}>
+                    {statsLoading ? '...' : `${stats.totalItems} items`}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                style={styles.menuCard}
+                onPress={() => router.push('/business/categories')}
+              >
+                <View style={styles.menuCardContent}>
+                  <Ionicons name="pricetag" size={24} color="#10B981" />
+                  <Text style={styles.menuCardTitle}>Categories</Text>
+                  <Text style={styles.menuCardCount}>
+                    {statsLoading ? '...' : `${stats.totalCategories} categories`}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            </View>
+          </ScrollView>
         </View>
 
         {/* Business Management */}
@@ -668,6 +722,8 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.08,
     shadowRadius: 2,
     elevation: 3,
+    borderWidth: 1,
+    borderColor: '#F0F0F0',
   },
   statIcon: {
     width: 50,
@@ -866,10 +922,13 @@ const styles = StyleSheet.create({
      fontFamily: 'MyFont-Regular',
      color: '#6B7280',
    },
-   menuGrid: {
-     flexDirection: 'row',
-     paddingRight: 16,
-   },
+   menuGridContainer: {
+    flexDirection: 'row',
+  },
+  menuGrid: {
+    flexDirection: 'row',
+    paddingRight: 16,
+  },
    section: {
     backgroundColor: '#FFFFFF',
     borderRadius: 12,

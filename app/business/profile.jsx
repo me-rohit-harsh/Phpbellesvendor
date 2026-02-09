@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -10,15 +10,20 @@ import {
   SafeAreaView,
   Switch,
   ActivityIndicator,
+  FlatList,
+  Modal,
+  Platform,
 } from 'react-native';
 import CustomAlert from '../components/CustomAlert';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { getCompleteProfile, updateCompleteProfile } from '../../lib/api/vendor';
+import { getCompleteProfile, updateCompleteProfile, getFoodTypes, getVendorTypes } from '../../lib/api/vendor';
 import { logout } from '../../lib/api/auth';
 import { showImagePickerOptions } from '../../lib/utils/permissions';
+import * as Location from 'expo-location';
+import DateTimePicker from '@react-native-community/datetimepicker';
 
 
 const ProfileManagement = () => {
@@ -34,104 +39,101 @@ const ProfileManagement = () => {
   
   
   const [profileData, setProfileData] = useState({
-    businessName: 'Gourmet Kitchen',
-    ownerName: 'John Doe',
-    email: 'john@gourmetkitchen.com',
-    phone: '8176990986',
-    address: '123 Food Street, Culinary District',
-    description: 'Authentic Indian cuisine with modern twist. Fresh ingredients, traditional recipes.',
-    cuisineType: 'Indian',
-    openTime: '09:00',
-    closeTime: '22:00',
-    deliveryRadius: '5',
-    minimumOrder: '200',
-    deliveryFee: '30',
-    profileImage: null,
-    coverImage: null,
-    // Basic Service Options
-    isVegetarian: false,
-    hasDelivery: true,
-    hasTakeaway: true,
-    acceptsOnlinePayment: true,
-    // Additional Service Options
-    hasDineIn: true,
-    hasOutdoorSeating: false,
-    hasParking: true,
-    hasWiFi: true,
-    hasAirConditioning: true,
-    hasLiveMusic: false,
-    hasKidsArea: false,
-    hasPetFriendly: false,
-    hasWheelchairAccess: true,
-    hasValet: false,
-    hasBuffet: false,
-    hasBarService: false,
-    hasCateringService: true,
-    hasPrivateDining: false,
-    acceptsCash: true,
-    acceptsCards: true,
-    acceptsUPI: true,
+    restaurant_name: '',
+    name: '',
+    email: '',
+    phone: '',
+    address: '',
+    house_number: '',
+    floor: '',
+    landmark: '',
+    additional_instructions: '',
+    pincode: '',
+    city: '',
+    state: '',
+    latitude: null,
+    longitude: null,
+    description: '',
+    vendor_type_id: null,
+    vendor_type: '',
+    food_types: [],
+    open_time: '09:00',
+    close_time: '22:00',
+    profile_photo: null,
+    profile_photo_uri: null,
+    banner_image: null,
+    banner_image_uri: null,
+    has_delivery: false,
+    has_pickup: false,
   });
+
+  const [vendorTypes, setVendorTypes] = useState([]);
+  const [foodTypes, setFoodTypes] = useState([]);
+  const [selectedFoodTypes, setSelectedFoodTypes] = useState([]);
+  const [showVendorTypeModal, setShowVendorTypeModal] = useState(false);
+  const [showFoodTypeModal, setShowFoodTypeModal] = useState(false);
+  const [showOpenTimePicker, setShowOpenTimePicker] = useState(false);
+  const [showCloseTimePicker, setShowCloseTimePicker] = useState(false);
 
   const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
 
-  // Fetch profile data on component mount
+  // Fetch profile data and types on component mount
   useEffect(() => {
-    fetchProfileData();
+    fetchInitialData();
   }, []);
 
-  const fetchProfileData = async () => {
+  const fetchInitialData = useCallback(async () => {
     try {
       setIsLoading(true);
-      const response = await getCompleteProfile();
-      
-      if (response.data && response.data.success) {
-        const profileInfo = response.data.data;
-        
-        // Map API response to local state structure
+      // Fetch vendor types, food types, and profile data in parallel
+      const [vendorTypesRes, foodTypesRes, profileRes] = await Promise.all([
+        getVendorTypes(),
+        getFoodTypes(),
+        getCompleteProfile(),
+      ]);
+
+      if (vendorTypesRes?.data) {
+        setVendorTypes(vendorTypesRes.data);
+      }
+      if (foodTypesRes?.data) {
+        setFoodTypes(foodTypesRes.data);
+      }
+
+      if (profileRes?.data?.data) {
+        const profile = profileRes.data.data;
+        const foodTypeIds = profile.food_types?.map(ft => ft.id) || [];
+        setSelectedFoodTypes(foodTypeIds);
         setProfileData(prev => ({
           ...prev,
-          businessName: profileInfo.restaurant_name || prev.businessName,
-          ownerName: profileInfo.name || prev.ownerName,
-          email: profileInfo.email || prev.email,
-          phone: profileInfo.phone || prev.phone,
-          address: profileInfo.address || prev.address,
-          description: profileInfo.description || prev.description,
-          cuisineType: profileInfo.cuisine_type || prev.cuisineType,
-          openTime: profileInfo.open_time || prev.openTime,
-          closeTime: profileInfo.close_time || prev.closeTime,
-          deliveryRadius: profileInfo.delivery_radius || prev.deliveryRadius,
-          minimumOrder: profileInfo.minimum_order || prev.minimumOrder,
-          deliveryFee: profileInfo.delivery_fee || prev.deliveryFee,
-          profileImage: profileInfo.profile_photo || prev.profileImage,
-          coverImage: profileInfo.banner_image || prev.coverImage,
-          // Service options
-          isVegetarian: profileInfo.is_vegetarian || prev.isVegetarian,
-          hasDelivery: profileInfo.has_delivery || prev.hasDelivery,
-          hasTakeaway: profileInfo.has_takeaway || prev.hasTakeaway,
-          acceptsOnlinePayment: profileInfo.accepts_online_payment || prev.acceptsOnlinePayment,
-          hasDineIn: profileInfo.has_dine_in || prev.hasDineIn,
-          hasOutdoorSeating: profileInfo.has_outdoor_seating || prev.hasOutdoorSeating,
-          hasParking: profileInfo.has_parking || prev.hasParking,
-          hasWiFi: profileInfo.has_wifi || prev.hasWiFi,
-          hasAirConditioning: profileInfo.has_air_conditioning || prev.hasAirConditioning,
-          hasLiveMusic: profileInfo.has_live_music || prev.hasLiveMusic,
-          hasKidsArea: profileInfo.has_kids_area || prev.hasKidsArea,
-          hasPetFriendly: profileInfo.has_pet_friendly || prev.hasPetFriendly,
-          hasWheelchairAccess: profileInfo.has_wheelchair_access || prev.hasWheelchairAccess,
-          hasValet: profileInfo.has_valet || prev.hasValet,
-          hasBuffet: profileInfo.has_buffet || prev.hasBuffet,
-          hasBarService: profileInfo.has_bar_service || prev.hasBarService,
-          hasCateringService: profileInfo.has_catering_service || prev.hasCateringService,
-          hasPrivateDining: profileInfo.has_private_dining || prev.hasPrivateDining,
-          acceptsCash: profileInfo.accepts_cash || prev.acceptsCash,
-          acceptsCards: profileInfo.accepts_cards || prev.acceptsCards,
-          acceptsUPI: profileInfo.accepts_upi || prev.acceptsUPI,
+          restaurant_name: profile.restaurant_name || '',
+          name: profile.name || '',
+          email: profile.email || '',
+          phone: profile.phone || '',
+          address: profile.address || '',
+          house_number: profile.house_number || '',
+          floor: profile.floor || '',
+          landmark: profile.landmark || '',
+          additional_instructions: profile.additional_instructions || '',
+          pincode: profile.pincode || '',
+          city: profile.city || '',
+          state: profile.state || '',
+          latitude: profile.latitude || null,
+          longitude: profile.longitude || null,
+          description: profile.description || '',
+          vendor_type_id: profile.vendor_type_id || null,
+          vendor_type: profile.vendor_type || '',
+          open_time: profile.open_time ? profile.open_time.substring(0, 5) : '09:00',
+          close_time: profile.close_time ? profile.close_time.substring(0, 5) : '22:00',
+          profile_photo_uri: profile.profile_photo || null,
+          banner_image_uri: profile.banner_image || null,
+          has_delivery: profile.has_delivery !== false,
+          has_pickup: profile.has_pickup !== false,
         }));
       }
     } catch (error) {
-      console.error('Error fetching profile data:', error);
+      console.error('Error fetching initial data:', error);
       setAlertConfig({
         title: 'Error',
         message: 'Failed to load profile data. Please try again.',
@@ -142,7 +144,7 @@ const ProfileManagement = () => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
   const showSuccessMessage = (title, message) => {
     setAlertConfig({
@@ -156,84 +158,171 @@ const ProfileManagement = () => {
 
   const handleSave = async () => {
     try {
-      setIsLoading(true);
-      
-      // Map local state to API format
-      const profileUpdateData = {
-        restaurant_name: profileData.businessName,
-        name: profileData.ownerName,
-        email: profileData.email,
-        phone: profileData.phone,
-        address: profileData.address,
-        description: profileData.description,
-        cuisine_type: profileData.cuisineType,
-        open_time: profileData.openTime,
-        close_time: profileData.closeTime,
-        delivery_radius: profileData.deliveryRadius,
-        minimum_order: profileData.minimumOrder,
-        delivery_fee: profileData.deliveryFee,
-        profile_photo: profileData.profileImage,
-        banner_image: profileData.coverImage,
-        // Service options
-        is_vegetarian: profileData.isVegetarian,
-        has_delivery: profileData.hasDelivery,
-        has_takeaway: profileData.hasTakeaway,
-        accepts_online_payment: profileData.acceptsOnlinePayment,
-        has_dine_in: profileData.hasDineIn,
-        has_outdoor_seating: profileData.hasOutdoorSeating,
-        has_parking: profileData.hasParking,
-        has_wifi: profileData.hasWiFi,
-        has_air_conditioning: profileData.hasAirConditioning,
-        has_live_music: profileData.hasLiveMusic,
-        has_kids_area: profileData.hasKidsArea,
-        has_pet_friendly: profileData.hasPetFriendly,
-        has_wheelchair_access: profileData.hasWheelchairAccess,
-        has_valet: profileData.hasValet,
-        has_buffet: profileData.hasBuffet,
-        has_bar_service: profileData.hasBarService,
-        has_catering_service: profileData.hasCateringService,
-        has_private_dining: profileData.hasPrivateDining,
-        accepts_cash: profileData.acceptsCash,
-        accepts_cards: profileData.acceptsCards,
-        accepts_upi: profileData.acceptsUPI,
-      };
+      if (!profileData.restaurant_name.trim()) {
+        showErrorAlert('Validation Error', 'Restaurant name is required.');
+        return;
+      }
+      if (!profileData.name.trim()) {
+        showErrorAlert('Validation Error', 'Owner name is required.');
+        return;
+      }
+      if (!profileData.vendor_type_id) {
+        showErrorAlert('Validation Error', 'Please select a vendor type.');
+        return;
+      }
+      if (selectedFoodTypes.length === 0) {
+        showErrorAlert('Validation Error', 'Please select at least one food type.');
+        return;
+      }
 
-      const response = await updateCompleteProfile(profileUpdateData);
+      setIsSaving(true);
+      
+      console.log('📝 Starting profile save...');
+      console.log('🖼️ Profile photo:', profileData.profile_photo);
+      console.log('🖼️ Banner image:', profileData.banner_image);
+      
+      // Create FormData for file uploads
+      const formData = new FormData();
+      
+      // Add text fields
+      formData.append('restaurant_name', profileData.restaurant_name);
+      formData.append('name', profileData.name);
+      formData.append('email', profileData.email || '');
+      formData.append('phone', profileData.phone || '');
+      formData.append('address', profileData.address || '');
+      formData.append('house_number', profileData.house_number || '');
+      formData.append('floor', profileData.floor || '');
+      formData.append('landmark', profileData.landmark || '');
+      formData.append('additional_instructions', profileData.additional_instructions || '');
+      formData.append('pincode', profileData.pincode || '');
+      formData.append('city', profileData.city || '');
+      formData.append('state', profileData.state || '');
+      if (profileData.latitude) formData.append('latitude', profileData.latitude.toString());
+      if (profileData.longitude) formData.append('longitude', profileData.longitude.toString());
+      formData.append('description', profileData.description || '');
+      formData.append('vendor_type_id', profileData.vendor_type_id.toString());
+      formData.append('open_time', profileData.open_time);
+      formData.append('close_time', profileData.close_time);
+      formData.append('has_delivery', profileData.has_delivery ? '1' : '0');
+      formData.append('has_pickup', profileData.has_pickup ? '1' : '0');
+      
+      // Add food types
+      selectedFoodTypes.forEach((id, index) => {
+        formData.append(`food_types[${index}]`, id.toString());
+      });
+      
+      // Add image files if selected - with detailed logging
+      if (profileData.profile_photo) {
+        console.log('✅ Appending profile_photo:', profileData.profile_photo);
+        formData.append('profile_photo', {
+          uri: profileData.profile_photo.uri,
+          type: profileData.profile_photo.type || 'image/jpeg',
+          name: profileData.profile_photo.name || `profile_photo_${Date.now()}.jpg`,
+        });
+      } else {
+        console.log('⚠️ No profile_photo to append');
+      }
+      
+      if (profileData.banner_image) {
+        console.log('✅ Appending banner_image:', profileData.banner_image);
+        formData.append('banner_image', {
+          uri: profileData.banner_image.uri,
+          type: profileData.banner_image.type || 'image/jpeg',
+          name: profileData.banner_image.name || `banner_image_${Date.now()}.jpg`,
+        });
+      } else {
+        console.log('⚠️ No banner_image to append');
+      }
+      
+      console.log('🚀 Sending FormData to API...');
+
+      const response = await updateCompleteProfile(formData);
       
       if (response.data && response.data.success) {
         showSuccessMessage('Success', 'Profile updated successfully!');
         setIsEditing(false);
+        // Refresh profile data
+        await fetchInitialData();
       } else {
         throw new Error(response.data?.message || 'Failed to update profile');
       }
     } catch (error) {
-      console.error('Error updating profile:', error);
-      setAlertConfig({
-        title: 'Error',
-        message: 'Failed to update profile. Please try again.',
-        type: 'error',
-        buttons: [{ text: 'OK', onPress: () => setShowAlert(false) }]
-      });
-      setShowAlert(true);
+      console.error('❌ Error updating profile:', error);
+      if (error.response) {
+        console.error('Response data:', error.response.data);
+        console.error('Response status:', error.response.status);
+      }
+      showErrorAlert('Error', error.response?.data?.message || 'Failed to update profile. Please try again.');
     } finally {
-      setIsLoading(false);
+      setIsSaving(false);
     }
   };
 
-  const pickImage = (type) => {
+  const showErrorAlert = (title, message) => {
+    setAlertConfig({
+      title,
+      message,
+      type: 'error',
+      buttons: [{ text: 'OK', onPress: () => setShowAlert(false) }]
+    });
+    setShowAlert(true);
+  };
+
+  const pickImage = useCallback((type) => {
     showImagePickerOptions(
       (imageFile) => {
+        console.log('Image selected:', imageFile);
+        
+        // Create proper file object for FormData
+        const fileObj = {
+          uri: imageFile.uri,
+          type: imageFile.type || 'image/jpeg',
+          name: imageFile.name || `${type}_${Date.now()}.jpg`,
+        };
+        
         setProfileData(prev => ({
           ...prev,
-          [type === 'profile' ? 'profileImage' : 'coverImage']: imageFile.uri
+          [type === 'profile' ? 'profile_photo' : 'banner_image']: fileObj,
+          [type === 'profile' ? 'profile_photo_uri' : 'banner_image_uri']: imageFile.uri
         }));
       },
       {
         allowsEditing: true,
         aspect: type === 'profile' ? [1, 1] : [16, 9],
         quality: 0.8,
-      }
+      },
+      'camera' // Force camera only for profile and banner images
     );
+  }, []);
+
+  const getCurrentLocation = async () => {
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        showErrorAlert('Permission Denied', 'Location permission is required to get current location.');
+        return;
+      }
+      const location = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
+      const { latitude, longitude } = location.coords;
+      const addressResponse = await Location.reverseGeocodeAsync({ latitude, longitude });
+      if (addressResponse && addressResponse.length > 0) {
+        const addr = addressResponse[0];
+        const formatted = [addr.name, addr.street, addr.city, addr.region].filter(Boolean).join(', ');
+        setProfileData(prev => ({ 
+          ...prev, 
+          address: formatted, 
+          latitude, 
+          longitude,
+          city: addr.city || prev.city,
+          state: addr.region || prev.state,
+          pincode: addr.postalCode || prev.pincode
+        }));
+        showSuccessMessage('Location Set', 'Your location has been updated from current position.');
+      }
+    } catch (e) {
+      console.error('Error getting location:', e);
+      showErrorAlert('Error', 'Unable to get current location.');
+    }
   };
 
   const ProfileSection = ({ title, children }) => (
@@ -243,7 +332,7 @@ const ProfileManagement = () => {
     </View>
   );
 
-  const InputField = ({ label, value, onChangeText, placeholder, keyboardType = 'default', multiline = false }) => (
+  const InputField = useCallback(({ label, value, onChangeText, placeholder, keyboardType = 'default', multiline = false }) => (
     <View style={styles.inputGroup}>
       <Text style={styles.inputLabel}>{label}</Text>
       <TextInput
@@ -257,7 +346,7 @@ const ProfileManagement = () => {
         numberOfLines={multiline ? 3 : 1}
       />
     </View>
-  );
+  ), [isEditing]);
 
   const SwitchField = ({ label, value, onValueChange }) => (
     <View style={styles.switchGroup}>
@@ -272,14 +361,95 @@ const ProfileManagement = () => {
     </View>
   );
 
+  const SelectField = ({ label, value, placeholder, onPress, editable = true }) => (
+    <View style={styles.inputGroup}>
+      <Text style={styles.inputLabel}>{label}</Text>
+      <TouchableOpacity
+        style={[styles.input, styles.selectInput, !editable && styles.disabledInput]}
+        onPress={onPress}
+        disabled={!editable}
+      >
+        <Text style={[styles.selectInputText, !value && styles.placeholderText]}>
+          {value || placeholder}
+        </Text>
+        <Ionicons name="chevron-down" size={20} color="#020A66" />
+      </TouchableOpacity>
+    </View>
+  );
+
+  const MultiSelectField = ({ label, selectedIds, items, onPress, editable = true }) => {
+    const selectedNames = items
+      .filter(item => selectedIds.includes(item.id))
+      .map(item => item.name)
+      .join(', ');
+
+    return (
+      <View style={styles.inputGroup}>
+        <Text style={styles.inputLabel}>{label}</Text>
+        <TouchableOpacity
+          style={[styles.input, styles.selectInput, !editable && styles.disabledInput]}
+          onPress={onPress}
+          disabled={!editable}
+        >
+          <Text style={[styles.selectInputText, !selectedNames && styles.placeholderText]}>
+            {selectedNames || 'Select food types'}
+          </Text>
+          <Ionicons name="chevron-down" size={20} color="#020A66" />
+        </TouchableOpacity>
+      </View>
+    );
+  };
+
+  const handleTimeChange = useCallback((event, selectedDate, type) => {
+    // For Android, close picker on any event
+    if (Platform.OS === 'android') {
+      if (type === 'open') setShowOpenTimePicker(false);
+      if (type === 'close') setShowCloseTimePicker(false);
+    }
+    
+    // Update time if user confirmed selection
+    if (selectedDate && (event.type === 'set' || Platform.OS === 'ios')) {
+      const hours = selectedDate.getHours().toString().padStart(2, '0');
+      const minutes = selectedDate.getMinutes().toString().padStart(2, '0');
+      const timeString = `${hours}:${minutes}`;
+      
+      setProfileData(prev => ({
+        ...prev,
+        [type === 'open' ? 'open_time' : 'close_time']: timeString
+      }));
+    }
+  }, []);
+
+  const parseTimeToDate = (timeString) => {
+    const [hours, minutes] = timeString.split(':').map(Number);
+    const date = new Date();
+    date.setHours(hours || 0);
+    date.setMinutes(minutes || 0);
+    return date;
+  };
+
+  const TimeField = useCallback(({ label, value, onPress, editable = true }) => (
+    <View style={styles.inputGroup}>
+      <Text style={styles.inputLabel}>{label}</Text>
+      <TouchableOpacity
+        style={[styles.input, styles.timeInput, !editable && styles.disabledInput]}
+        onPress={onPress}
+        disabled={!editable}
+      >
+        <Text style={styles.timeInputText}>{value || 'HH:MM'}</Text>
+        <Ionicons name="time-outline" size={20} color="#020A66" />
+      </TouchableOpacity>
+    </View>
+  ), []);
+
   return (
     <SafeAreaView style={styles.container}>
-      {/* Loading Overlay */}
-      {isLoading && (
+      {/* Loading/Saving Overlay */}
+      {(isLoading || isSaving) && (
         <View style={styles.loadingOverlay}>
           <ActivityIndicator size="large" color="#020A66" />
           <Text style={styles.loadingText}>
-            {isEditing ? 'Saving profile...' : 'Loading profile...'}
+            {isSaving ? 'Saving profile...' : 'Loading profile...'}
           </Text>
         </View>
       )}
@@ -307,15 +477,15 @@ const ProfileManagement = () => {
         <View style={styles.coverImageContainer}>
           <TouchableOpacity 
             style={styles.coverImageWrapper}
-            onPress={() => isEditing && pickImage('cover')}
+            onPress={() => isEditing && pickImage('banner')}
             disabled={!isEditing}
           >
-            {profileData.coverImage ? (
-              <Image source={{ uri: profileData.coverImage }} style={styles.coverImage} />
+            {profileData.banner_image_uri ? (
+              <Image source={{ uri: profileData.banner_image_uri }} style={styles.coverImage} />
             ) : (
               <View style={styles.coverImagePlaceholder}>
                 <Ionicons name="image-outline" size={40} color="#9CA3AF" />
-                <Text style={styles.coverImageText}>Cover Photo</Text>
+                <Text style={styles.coverImageText}>Banner Image</Text>
               </View>
             )}
             {isEditing && (
@@ -333,8 +503,8 @@ const ProfileManagement = () => {
             onPress={() => isEditing && pickImage('profile')}
             disabled={!isEditing}
           >
-            {profileData.profileImage ? (
-              <Image source={{ uri: profileData.profileImage }} style={styles.profileImage} />
+            {profileData.profile_photo_uri ? (
+              <Image source={{ uri: profileData.profile_photo_uri }} style={styles.profileImage} />
             ) : (
               <View style={styles.profileImagePlaceholder}>
                 <Ionicons name="restaurant" size={30} color="#9CA3AF" />
@@ -348,18 +518,18 @@ const ProfileManagement = () => {
           </TouchableOpacity>
         </View>
 
-        {/* Basic Information */}
-        <ProfileSection title="Basic Information">
+        {/* Business Information */}
+        <ProfileSection title="Business Information">
           <InputField
-            label="Business Name"
-            value={profileData.businessName}
-            onChangeText={(text) => setProfileData(prev => ({ ...prev, businessName: text }))}
-            placeholder="Enter business name"
+            label="Restaurant Name"
+            value={profileData.restaurant_name}
+            onChangeText={(text) => setProfileData(prev => ({ ...prev, restaurant_name: text }))}
+            placeholder="Enter restaurant name"
           />
           <InputField
             label="Owner Name"
-            value={profileData.ownerName}
-            onChangeText={(text) => setProfileData(prev => ({ ...prev, ownerName: text }))}
+            value={profileData.name}
+            onChangeText={(text) => setProfileData(prev => ({ ...prev, name: text }))}
             placeholder="Enter owner name"
           />
           <InputField
@@ -390,181 +560,173 @@ const ProfileManagement = () => {
             placeholder="Describe your business"
             multiline
           />
+        </ProfileSection>
+
+        {/* Address Details */}
+        <ProfileSection title="Address Details">
           <InputField
-            label="Cuisine Type"
-            value={profileData.cuisineType}
-            onChangeText={(text) => setProfileData(prev => ({ ...prev, cuisineType: text }))}
-            placeholder="e.g., Indian, Chinese, Italian"
+            label="Full Address"
+            value={profileData.address}
+            onChangeText={(text) => setProfileData(prev => ({ ...prev, address: text }))}
+            placeholder="Enter complete business address"
+            multiline
           />
+          <InputField
+            label="House / Building Number"
+            value={profileData.house_number}
+            onChangeText={(text) => setProfileData(prev => ({ ...prev, house_number: text }))}
+            placeholder="e.g., 123, Building A"
+          />
+          <InputField
+            label="Floor / Unit"
+            value={profileData.floor}
+            onChangeText={(text) => setProfileData(prev => ({ ...prev, floor: text }))}
+            placeholder="e.g., Ground Floor, Unit 5"
+          />
+          <InputField
+            label="Landmark (Optional)"
+            value={profileData.landmark}
+            onChangeText={(text) => setProfileData(prev => ({ ...prev, landmark: text }))}
+            placeholder="e.g., Near City Center, Opposite Park"
+          />
+          <InputField
+            label="Additional Instructions (Optional)"
+            value={profileData.additional_instructions}
+            onChangeText={(text) => setProfileData(prev => ({ ...prev, additional_instructions: text }))}
+            placeholder="e.g., Use side entrance, Ring bell twice"
+            multiline
+          />
+          <View style={styles.timeRow}>
+            <View style={styles.timeField}>
+              <InputField
+                label="Pincode"
+                value={profileData.pincode}
+                onChangeText={(text) => setProfileData(prev => ({ ...prev, pincode: text }))}
+                placeholder="000000"
+                keyboardType="numeric"
+              />
+            </View>
+            <View style={styles.timeField}>
+              <InputField
+                label="City"
+                value={profileData.city}
+                onChangeText={(text) => setProfileData(prev => ({ ...prev, city: text }))}
+                placeholder="Enter city"
+              />
+            </View>
+          </View>
+          <InputField
+            label="State"
+            value={profileData.state}
+            onChangeText={(text) => setProfileData(prev => ({ ...prev, state: text }))}
+            placeholder="Enter state"
+          />
+          <TouchableOpacity style={styles.primaryButton} onPress={getCurrentLocation}>
+            <Ionicons name="locate" size={20} color="#FFFFFF" />
+            <Text style={styles.primaryButtonText}>Use Current Location</Text>
+          </TouchableOpacity>
+        </ProfileSection>
+
+        {/* Business Type */}
+        <ProfileSection title="Restaurant Type">
+          <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>Vendor Type (Select One)*</Text>
+            <TouchableOpacity
+              style={[styles.input, styles.selectInput, !isEditing && styles.disabledInput]}
+              disabled={!isEditing}
+              onPress={() => isEditing && setShowVendorTypeModal(true)}
+            >
+              <Text style={[styles.selectInputText, !profileData.vendor_type && styles.placeholderText]}>
+                {profileData.vendor_type || 'Select vendor type'}
+              </Text>
+              <Ionicons name="chevron-down" size={20} color="#020A66" />
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>Food Types (Select Multiple)*</Text>
+            <TouchableOpacity
+              style={[styles.input, styles.selectInput, { minHeight: 50 }, !isEditing && styles.disabledInput]}
+              disabled={!isEditing}
+              onPress={() => isEditing && setShowFoodTypeModal(true)}
+            >
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.selectInputText, selectedFoodTypes.length === 0 && styles.placeholderText, { marginBottom: 4 }]}>
+                  {selectedFoodTypes.length > 0 ? `${selectedFoodTypes.length} selected` : 'Select food types'}
+                </Text>
+                {selectedFoodTypes.length > 0 && (
+                  <View style={styles.selectedFoodTypes}>
+                    {foodTypes
+                      .filter(ft => selectedFoodTypes.includes(ft.id))
+                      .map(ft => (
+                        <View key={ft.id} style={styles.foodTypeTag}>
+                          <Text style={styles.foodTypeTagText}>{ft.name}</Text>
+                        </View>
+                      ))}
+                  </View>
+                )}
+              </View>
+              <Ionicons name="chevron-down" size={20} color="#020A66" />
+            </TouchableOpacity>
+          </View>
         </ProfileSection>
 
         {/* Operating Hours */}
         <ProfileSection title="Operating Hours">
           <View style={styles.timeRow}>
             <View style={styles.timeField}>
-              <InputField
+              <TimeField
                 label="Opening Time"
-                value={profileData.openTime}
-                onChangeText={(text) => setProfileData(prev => ({ ...prev, openTime: text }))}
-                placeholder="09:00"
+                value={profileData.open_time}
+                onPress={() => isEditing && setShowOpenTimePicker(true)}
+                editable={isEditing}
               />
             </View>
             <View style={styles.timeField}>
-              <InputField
+              <TimeField
                 label="Closing Time"
-                value={profileData.closeTime}
-                onChangeText={(text) => setProfileData(prev => ({ ...prev, closeTime: text }))}
-                placeholder="22:00"
+                value={profileData.close_time}
+                onPress={() => isEditing && setShowCloseTimePicker(true)}
+                editable={isEditing}
               />
             </View>
           </View>
         </ProfileSection>
 
-        {/* Delivery Settings */}
-        <ProfileSection title="Delivery Settings">
-          <InputField
-            label="Delivery Radius (km)"
-            value={profileData.deliveryRadius}
-            onChangeText={(text) => setProfileData(prev => ({ ...prev, deliveryRadius: text }))}
-            placeholder="5"
-            keyboardType="numeric"
-          />
-          <InputField
-            label="Minimum Order (₹)"
-            value={profileData.minimumOrder}
-            onChangeText={(text) => setProfileData(prev => ({ ...prev, minimumOrder: text }))}
-            placeholder="200"
-            keyboardType="numeric"
-          />
-          <InputField
-            label="Delivery Fee (₹)"
-            value={profileData.deliveryFee}
-            onChangeText={(text) => setProfileData(prev => ({ ...prev, deliveryFee: text }))}
-            placeholder="30"
-            keyboardType="numeric"
-          />
-        </ProfileSection>
-
         {/* Service Options */}
         <ProfileSection title="Service Options">
-          <Text style={[styles.inputLabel, { fontSize: 16, marginBottom: 12, color: '#020A66' }]}>Dining Options</Text>
-          <SwitchField
-            label="Vegetarian Only"
-            value={profileData.isVegetarian}
-            onValueChange={(value) => setProfileData(prev => ({ ...prev, isVegetarian: value }))}
-          />
-          <SwitchField
-            label="Dine-In"
-            value={profileData.hasDineIn}
-            onValueChange={(value) => setProfileData(prev => ({ ...prev, hasDineIn: value }))}
-          />
-          <SwitchField
-            label="Home Delivery"
-            value={profileData.hasDelivery}
-            onValueChange={(value) => setProfileData(prev => ({ ...prev, hasDelivery: value }))}
-          />
-          <SwitchField
-            label="Takeaway"
-            value={profileData.hasTakeaway}
-            onValueChange={(value) => setProfileData(prev => ({ ...prev, hasTakeaway: value }))}
-          />
-          <SwitchField
-            label="Buffet Service"
-            value={profileData.hasBuffet}
-            onValueChange={(value) => setProfileData(prev => ({ ...prev, hasBuffet: value }))}
-          />
-          <SwitchField
-            label="Catering Service"
-            value={profileData.hasCateringService}
-            onValueChange={(value) => setProfileData(prev => ({ ...prev, hasCateringService: value }))}
-          />
-          <SwitchField
-            label="Private Dining"
-            value={profileData.hasPrivateDining}
-            onValueChange={(value) => setProfileData(prev => ({ ...prev, hasPrivateDining: value }))}
-          />
-        </ProfileSection>
-
-        {/* Facilities & Amenities */}
-        <ProfileSection title="Facilities & Amenities">
-          <SwitchField
-            label="Outdoor Seating"
-            value={profileData.hasOutdoorSeating}
-            onValueChange={(value) => setProfileData(prev => ({ ...prev, hasOutdoorSeating: value }))}
-          />
-          <SwitchField
-            label="Parking Available"
-            value={profileData.hasParking}
-            onValueChange={(value) => setProfileData(prev => ({ ...prev, hasParking: value }))}
-          />
-          <SwitchField
-            label="Free WiFi"
-            value={profileData.hasWiFi}
-            onValueChange={(value) => setProfileData(prev => ({ ...prev, hasWiFi: value }))}
-          />
-          <SwitchField
-            label="Air Conditioning"
-            value={profileData.hasAirConditioning}
-            onValueChange={(value) => setProfileData(prev => ({ ...prev, hasAirConditioning: value }))}
-          />
-          <SwitchField
-            label="Live Music"
-            value={profileData.hasLiveMusic}
-            onValueChange={(value) => setProfileData(prev => ({ ...prev, hasLiveMusic: value }))}
-          />
-          <SwitchField
-            label="Kids Play Area"
-            value={profileData.hasKidsArea}
-            onValueChange={(value) => setProfileData(prev => ({ ...prev, hasKidsArea: value }))}
-          />
-          <SwitchField
-            label="Pet Friendly"
-            value={profileData.hasPetFriendly}
-            onValueChange={(value) => setProfileData(prev => ({ ...prev, hasPetFriendly: value }))}
-          />
-          <SwitchField
-            label="Wheelchair Accessible"
-            value={profileData.hasWheelchairAccess}
-            onValueChange={(value) => setProfileData(prev => ({ ...prev, hasWheelchairAccess: value }))}
-          />
-          <SwitchField
-            label="Valet Parking"
-            value={profileData.hasValet}
-            onValueChange={(value) => setProfileData(prev => ({ ...prev, hasValet: value }))}
-          />
-          <SwitchField
-            label="Bar Service"
-            value={profileData.hasBarService}
-            onValueChange={(value) => setProfileData(prev => ({ ...prev, hasBarService: value }))}
-          />
-        </ProfileSection>
-
-        {/* Payment Options */}
-        <ProfileSection title="Payment Options">
-          <SwitchField
-            label="Cash Payments"
-            value={profileData.acceptsCash}
-            onValueChange={(value) => setProfileData(prev => ({ ...prev, acceptsCash: value }))}
-          />
-          <SwitchField
-            label="Card Payments"
-            value={profileData.acceptsCards}
-            onValueChange={(value) => setProfileData(prev => ({ ...prev, acceptsCards: value }))}
-          />
-          <SwitchField
-            label="UPI Payments"
-            value={profileData.acceptsUPI}
-            onValueChange={(value) => setProfileData(prev => ({ ...prev, acceptsUPI: value }))}
-          />
-          <SwitchField
-            label="Online Payment"
-            value={profileData.acceptsOnlinePayment}
-            onValueChange={(value) => setProfileData(prev => ({ ...prev, acceptsOnlinePayment: value }))}
-          />
+          <View style={styles.switchGroup}>
+            <Text style={styles.inputLabel}>Home Delivery</Text>
+            <Switch
+              value={profileData.has_delivery}
+              onValueChange={(value) => setProfileData(prev => ({ ...prev, has_delivery: value }))}
+              disabled={!isEditing}
+              trackColor={{ false: '#E5E7EB', true: '#020A66' }}
+              thumbColor={profileData.has_delivery ? '#FFFFFF' : '#9CA3AF'}
+            />
+          </View>
+          <View style={styles.switchGroup}>
+            <Text style={styles.inputLabel}>Pickup Service</Text>
+            <Switch
+              value={profileData.has_pickup}
+              onValueChange={(value) => setProfileData(prev => ({ ...prev, has_pickup: value }))}
+              disabled={!isEditing}
+              trackColor={{ false: '#E5E7EB', true: '#020A66' }}
+              thumbColor={profileData.has_pickup ? '#FFFFFF' : '#9CA3AF'}
+            />
+          </View>
         </ProfileSection>
 
         {/* Action Buttons */}
         <View style={styles.actionButtons}>
+          <TouchableOpacity 
+            style={styles.primaryButton}
+            onPress={() => router.push('/vendor/wallet')}
+          >
+            <Ionicons name="wallet" size={20} color="#FFFFFF" />
+            <Text style={styles.primaryButtonText}>Wallet & Earnings</Text>
+          </TouchableOpacity>
+
           <TouchableOpacity 
             style={styles.dangerButton}
             onPress={() => {
@@ -617,6 +779,181 @@ const ProfileManagement = () => {
         </View>
       </ScrollView>
       
+      {/* Vendor Type Selection Modal */}
+      <Modal
+        visible={showVendorTypeModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowVendorTypeModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Select Vendor Type</Text>
+              <TouchableOpacity onPress={() => setShowVendorTypeModal(false)}>
+                <Ionicons name="close" size={24} color="#020A66" />
+              </TouchableOpacity>
+            </View>
+            <FlatList
+              data={vendorTypes}
+              keyExtractor={(item) => item.id.toString()}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={[
+                    styles.modalOption,
+                    profileData.vendor_type_id === item.id && styles.modalOptionSelected
+                  ]}
+                  onPress={() => {
+                    setProfileData(prev => ({
+                      ...prev,
+                      vendor_type_id: item.id,
+                      vendor_type: item.name
+                    }));
+                    setShowVendorTypeModal(false);
+                  }}
+                >
+                  <View style={styles.optionContent}>
+                    <Text style={styles.optionText}>{item.name}</Text>
+                    {profileData.vendor_type_id === item.id && (
+                      <Ionicons name="checkmark-circle" size={24} color="#020A66" />
+                    )}
+                  </View>
+                </TouchableOpacity>
+              )}
+            />
+          </View>
+        </View>
+      </Modal>
+
+      {/* Food Types Selection Modal */}
+      <Modal
+        visible={showFoodTypeModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowFoodTypeModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Select Food Types</Text>
+              <TouchableOpacity onPress={() => setShowFoodTypeModal(false)}>
+                <Ionicons name="close" size={24} color="#020A66" />
+              </TouchableOpacity>
+            </View>
+            <FlatList
+              data={foodTypes}
+              keyExtractor={(item) => item.id.toString()}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={[
+                    styles.modalOption,
+                    selectedFoodTypes.includes(item.id) && styles.modalOptionSelected
+                  ]}
+                  onPress={() => {
+                    setSelectedFoodTypes(prev => {
+                      if (prev.includes(item.id)) {
+                        return prev.filter(id => id !== item.id);
+                      } else {
+                        return [...prev, item.id];
+                      }
+                    });
+                  }}
+                >
+                  <View style={styles.optionContent}>
+                    <Text style={styles.optionText}>{item.name}</Text>
+                    {selectedFoodTypes.includes(item.id) && (
+                      <Ionicons name="checkmark-circle" size={24} color="#020A66" />
+                    )}
+                  </View>
+                </TouchableOpacity>
+              )}
+            />
+          </View>
+        </View>
+      </Modal>
+
+      {/* Time Pickers */}
+      {Platform.OS === 'ios' ? (
+        <>
+          {/* iOS Time Picker Modal for Open Time */}
+          <Modal
+            visible={showOpenTimePicker}
+            transparent={true}
+            animationType="slide"
+            onRequestClose={() => setShowOpenTimePicker(false)}
+          >
+            <View style={styles.timePickerModalOverlay}>
+              <View style={styles.timePickerModalContent}>
+                <View style={styles.timePickerHeader}>
+                  <Text style={styles.timePickerTitle}>Select Opening Time</Text>
+                  <TouchableOpacity onPress={() => setShowOpenTimePicker(false)}>
+                    <Text style={styles.timePickerDoneButton}>Done</Text>
+                  </TouchableOpacity>
+                </View>
+                <DateTimePicker
+                  value={parseTimeToDate(profileData.open_time)}
+                  mode="time"
+                  is24Hour={true}
+                  display="spinner"
+                  onChange={(event, selectedDate) => handleTimeChange(event, selectedDate, 'open')}
+                  style={styles.iosTimePicker}
+                />
+              </View>
+            </View>
+          </Modal>
+
+          {/* iOS Time Picker Modal for Close Time */}
+          <Modal
+            visible={showCloseTimePicker}
+            transparent={true}
+            animationType="slide"
+            onRequestClose={() => setShowCloseTimePicker(false)}
+          >
+            <View style={styles.timePickerModalOverlay}>
+              <View style={styles.timePickerModalContent}>
+                <View style={styles.timePickerHeader}>
+                  <Text style={styles.timePickerTitle}>Select Closing Time</Text>
+                  <TouchableOpacity onPress={() => setShowCloseTimePicker(false)}>
+                    <Text style={styles.timePickerDoneButton}>Done</Text>
+                  </TouchableOpacity>
+                </View>
+                <DateTimePicker
+                  value={parseTimeToDate(profileData.close_time)}
+                  mode="time"
+                  is24Hour={true}
+                  display="spinner"
+                  onChange={(event, selectedDate) => handleTimeChange(event, selectedDate, 'close')}
+                  style={styles.iosTimePicker}
+                />
+              </View>
+            </View>
+          </Modal>
+        </>
+      ) : (
+        <>
+          {/* Android Time Picker */}
+          {showOpenTimePicker && (
+            <DateTimePicker
+              value={parseTimeToDate(profileData.open_time)}
+              mode="time"
+              is24Hour={true}
+              display="default"
+              onChange={(event, selectedDate) => handleTimeChange(event, selectedDate, 'open')}
+            />
+          )}
+
+          {showCloseTimePicker && (
+            <DateTimePicker
+              value={parseTimeToDate(profileData.close_time)}
+              mode="time"
+              is24Hour={true}
+              display="default"
+              onChange={(event, selectedDate) => handleTimeChange(event, selectedDate, 'close')}
+            />
+          )}
+        </>
+      )}
+
       <CustomAlert
         visible={showAlert}
         title={alertConfig.title}
@@ -792,6 +1129,22 @@ const styles = StyleSheet.create({
   actionButtons: {
     paddingHorizontal: 20,
     paddingBottom: 30,
+    gap: 12,
+  },
+  primaryButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#020A66',
+    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    gap: 8,
+  },
+  primaryButtonText: {
+    fontSize: 16,
+    fontFamily: 'MyFont-Bold',
+    color: '#FFFFFF',
   },
   dangerButton: {
     flexDirection: 'row',
@@ -826,6 +1179,131 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: 'MyFont-Medium',
     color: '#020A66',
+  },
+  selectInput: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingRight: 12,
+  },
+  selectInputText: {
+    flex: 1,
+    fontSize: 16,
+    fontFamily: 'MyFont-Regular',
+    color: '#1F2937',
+  },
+  placeholderText: {
+    color: '#9CA3AF',
+  },
+  disabledInput: {
+    backgroundColor: '#F3F4F6',
+    borderColor: '#D1D5DB',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    maxHeight: '80%',
+    paddingBottom: 20,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontFamily: 'MyFont-Bold',
+    color: '#1F2937',
+  },
+  modalOption: {
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+  },
+  modalOptionSelected: {
+    backgroundColor: '#F0F3FF',
+  },
+  optionContent: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  optionText: {
+    fontSize: 16,
+    fontFamily: 'MyFont-Medium',
+    color: '#1F2937',
+    flex: 1,
+  },
+  selectedFoodTypes: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  foodTypeTag: {
+    backgroundColor: '#020A66',
+    borderRadius: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+  },
+  foodTypeTagText: {
+    fontSize: 12,
+    color: '#FFFFFF',
+    fontFamily: 'MyFont-Medium',
+  },
+  timeInput: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingRight: 12,
+  },
+  timeInputText: {
+    fontSize: 16,
+    fontFamily: 'MyFont-Regular',
+    color: '#1F2937',
+  },
+  timePickerModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  timePickerModalContent: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingBottom: 20,
+  },
+  timePickerHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  timePickerTitle: {
+    fontSize: 18,
+    fontFamily: 'MyFont-Bold',
+    color: '#1F2937',
+  },
+  timePickerDoneButton: {
+    fontSize: 16,
+    fontFamily: 'MyFont-Bold',
+    color: '#020A66',
+  },
+  iosTimePicker: {
+    backgroundColor: '#FFFFFF',
   },
 });
 
