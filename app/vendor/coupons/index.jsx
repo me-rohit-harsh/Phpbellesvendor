@@ -120,6 +120,8 @@ const CouponsScreen = () => {
       return bd - ad;
     });
 
+  const isEmpty = displayed.length === 0;
+
   if (loading) {
     return (
       <View style={styles.centered}>
@@ -153,14 +155,8 @@ const CouponsScreen = () => {
           </TouchableOpacity>
         </View>
       </View>
-      <FlatList
-        data={displayed}
-        keyExtractor={(item) => String(item?.id)}
-        renderItem={renderItem}
-        contentContainerStyle={coupons.length === 0 ? styles.emptyContainer : styles.listContainer}
-        refreshing={refreshing}
-        onRefresh={onRefresh}
-        ListHeaderComponent={
+      {isEmpty ? (
+        <ScrollView contentContainerStyle={styles.emptyScrollContainer}>
           <View>
             <View style={styles.searchContainer}>
               <Ionicons name="search" size={18} color="#6B7280" style={styles.searchIcon} />
@@ -253,9 +249,8 @@ const CouponsScreen = () => {
               </View>
             </ScrollView>
           </View>
-        }
-        ListEmptyComponent={
-          <View style={styles.centered}>
+
+          <View style={styles.emptyBlock}>
             <Ionicons name="pricetags-outline" size={48} color="#9CA3AF" />
             <Text style={styles.emptyTitle}>No coupons yet</Text>
             <Text style={styles.emptySubtitle}>Create your first coupon to attract customers</Text>
@@ -264,8 +259,111 @@ const CouponsScreen = () => {
               <Text style={styles.emptyCreateText}>Create Coupon</Text>
             </TouchableOpacity>
           </View>
-        }
-      />
+        </ScrollView>
+      ) : (
+        <FlatList
+          data={displayed}
+          keyExtractor={(item, index) => String(item?.id ?? index)}
+          renderItem={renderItem}
+          contentContainerStyle={styles.listContainer}
+          refreshing={refreshing}
+          onRefresh={onRefresh}
+          ListHeaderComponent={
+            <View>
+              <View style={styles.searchContainer}>
+                <Ionicons name="search" size={18} color="#6B7280" style={styles.searchIcon} />
+                <TextInput
+                  style={styles.searchInput}
+                  placeholder="Search by code"
+                  placeholderTextColor="#9CA3AF"
+                  value={query}
+                  onChangeText={setQuery}
+                />
+              </View>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
+                <View style={styles.filterGroup}>
+                  <TouchableOpacity style={styles.filterLabelRow} onPress={() => toggleGroup('type')}>
+                    <Text style={styles.filterLabel}>Type</Text>
+                    <Ionicons name={openGroups.type ? 'chevron-up' : 'chevron-down'} size={14} color="#6B7280" style={styles.filterChevron} />
+                  </TouchableOpacity>
+                  {openGroups.type && (
+                    <View style={styles.filterChipsRow}>
+                      <TouchableOpacity
+                        style={[styles.filterBtn, typeFilter === 'all' && styles.filterActive]}
+                        onPress={() => setTypeFilter('all')}
+                      >
+                        <Text style={[styles.filterText, typeFilter === 'all' && styles.filterTextActive]}>All Types</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[styles.filterBtn, typeFilter === 'percentage' && styles.filterActive]}
+                        onPress={() => setTypeFilter('percentage')}
+                      >
+                        <Text style={[styles.filterText, typeFilter === 'percentage' && styles.filterTextActive]}>Percentage</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[styles.filterBtn, typeFilter === 'fixed' && styles.filterActive]}
+                        onPress={() => setTypeFilter('fixed')}
+                      >
+                        <Text style={[styles.filterText, typeFilter === 'fixed' && styles.filterTextActive]}>Fixed</Text>
+                      </TouchableOpacity>
+                    </View>
+                  )}
+                </View>
+                <View style={styles.filterGroup}>
+                  <TouchableOpacity style={styles.filterLabelRow} onPress={() => toggleGroup('status')}>
+                    <Text style={styles.filterLabel}>Status</Text>
+                    <Ionicons name={openGroups.status ? 'chevron-up' : 'chevron-down'} size={14} color="#6B7280" style={styles.filterChevron} />
+                  </TouchableOpacity>
+                  {openGroups.status && (
+                    <View style={styles.filterChipsRow}>
+                      <TouchableOpacity
+                        style={[styles.filterBtn, statusFilter === 'all' && styles.filterActive]}
+                        onPress={() => setStatusFilter('all')}
+                      >
+                        <Text style={[styles.filterText, statusFilter === 'all' && styles.filterTextActive]}>All Status</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[styles.filterBtn, statusFilter === 'active' && styles.filterActive]}
+                        onPress={() => setStatusFilter('active')}
+                      >
+                        <Text style={[styles.filterText, statusFilter === 'active' && styles.filterTextActive]}>Active</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[styles.filterBtn, statusFilter === 'inactive' && styles.filterActive]}
+                        onPress={() => setStatusFilter('inactive')}
+                      >
+                        <Text style={[styles.filterText, statusFilter === 'inactive' && styles.filterTextActive]}>Inactive</Text>
+                      </TouchableOpacity>
+                    </View>
+                  )}
+                </View>
+                <View style={styles.filterGroup}>
+                  <TouchableOpacity style={styles.filterLabelRow} onPress={() => toggleGroup('sort')}>
+                    <Text style={styles.filterLabel}>Sort</Text>
+                    <Ionicons name={openGroups.sort ? 'chevron-up' : 'chevron-down'} size={14} color="#6B7280" style={styles.filterChevron} />
+                  </TouchableOpacity>
+                  {openGroups.sort && (
+                    <View style={styles.filterChipsRow}>
+                      <TouchableOpacity
+                        style={[styles.filterBtn, sortBy === 'recent' && styles.filterActive]}
+                        onPress={() => setSortBy('recent')}
+                      >
+                        <Text style={[styles.filterText, sortBy === 'recent' && styles.filterTextActive]}>Recent</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[styles.filterBtn, sortBy === 'expiring' && styles.filterActive]}
+                        onPress={() => setSortBy('expiring')}
+                      >
+                        <Text style={[styles.filterText, sortBy === 'expiring' && styles.filterTextActive]}>Expiring</Text>
+                      </TouchableOpacity>
+                    </View>
+                  )}
+                </View>
+              </ScrollView>
+            </View>
+          }
+        />
+      )}
     </View>
   );
 };
@@ -449,6 +547,16 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     marginLeft: 8,
     fontFamily: 'MyFont-Bold',
+  },
+  emptyScrollContainer: {
+    flexGrow: 1,
+    paddingBottom: 30,
+  },
+  emptyBlock: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 40,
   },
 });
 

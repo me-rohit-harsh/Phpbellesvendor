@@ -61,10 +61,10 @@ const CategoryList = ({
       <View style={styles.emptyIconContainer}>
         <Ionicons name="restaurant-outline" size={64} color="#D1D5DB" />
       </View>
-      <Text style={styles.emptyTitle}>
+      <Text style={styles.emptyTitle} numberOfLines={1} ellipsizeMode="tail">
         {searchQuery || filterStatus !== 'all' ? 'No categories found' : 'No categories yet'}
       </Text>
-      <Text style={styles.emptySubtitle}>
+      <Text style={styles.emptySubtitle} numberOfLines={1} ellipsizeMode="tail">
         {searchQuery || filterStatus !== 'all' 
           ? 'Try adjusting your search or filter criteria'
           : 'Create your first category to organize your menu items'
@@ -104,7 +104,7 @@ const CategoryList = ({
           style={[styles.filterButton, filterStatus === 'all' && styles.activeFilter]}
           onPress={() => setFilterStatus('all')}
         >
-          <Text style={[styles.filterText, filterStatus === 'all' && styles.activeFilterText]}>
+          <Text style={[styles.filterText, filterStatus === 'all' && styles.activeFilterText]} numberOfLines={1} ellipsizeMode="tail">
             All ({categories.length})
           </Text>
         </TouchableOpacity>
@@ -112,7 +112,7 @@ const CategoryList = ({
           style={[styles.filterButton, filterStatus === 'active' && styles.activeFilter]}
           onPress={() => setFilterStatus('active')}
         >
-          <Text style={[styles.filterText, filterStatus === 'active' && styles.activeFilterText]}>
+          <Text style={[styles.filterText, filterStatus === 'active' && styles.activeFilterText]} numberOfLines={1} ellipsizeMode="tail">
             Active ({categories.filter(c => c.is_active).length})
           </Text>
         </TouchableOpacity>
@@ -120,7 +120,7 @@ const CategoryList = ({
           style={[styles.filterButton, filterStatus === 'inactive' && styles.activeFilter]}
           onPress={() => setFilterStatus('inactive')}
         >
-          <Text style={[styles.filterText, filterStatus === 'inactive' && styles.activeFilterText]}>
+          <Text style={[styles.filterText, filterStatus === 'inactive' && styles.activeFilterText]} numberOfLines={1} ellipsizeMode="tail">
             Inactive ({categories.filter(c => !c.is_active).length})
           </Text>
         </TouchableOpacity>
@@ -128,7 +128,7 @@ const CategoryList = ({
 
       {/* Results Count */}
       <View style={styles.resultsContainer}>
-        <Text style={styles.resultsText}>
+        <Text style={styles.resultsText} numberOfLines={1} ellipsizeMode="tail">
           {filteredCategories.length} {filteredCategories.length === 1 ? 'category' : 'categories'}
           {(searchQuery || filterStatus !== 'all') && ` found`}
         </Text>
@@ -194,7 +194,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 0,
     marginBottom: 16,
     shadowColor: '#000',
     shadowOffset: {

@@ -361,9 +361,9 @@ const Dashboard = ({ businessData }) => {
           {statsError ? (
             <View style={styles.errorContainer}>
               <Ionicons name="alert-circle" size={24} color="#EF4444" />
-              <Text style={styles.errorText}>Failed to load statistics</Text>
+              <Text style={styles.errorText} numberOfLines={1} ellipsizeMode="tail">Failed to load statistics</Text>
               <TouchableOpacity onPress={refreshStats} style={styles.retryButton}>
-                <Text style={styles.retryText}>Tap to retry</Text>
+                <Text style={styles.retryText} numberOfLines={1} ellipsizeMode="tail">Tap to retry</Text>
               </TouchableOpacity>
             </View>
           ) : (
@@ -378,8 +378,8 @@ const Dashboard = ({ businessData }) => {
                   <View style={[styles.statIcon, { backgroundColor: stat.color + '20' }]}>
                     <Ionicons name={stat.icon} size={24} color={stat.color} />
                   </View>
-                  <Text style={styles.statValue}>{stat.value}</Text>
-                  <Text style={styles.statLabel}>{stat.label}</Text>
+                  <Text style={styles.statValue} numberOfLines={1} ellipsizeMode="tail">{stat.value}</Text>
+                  <Text style={styles.statLabel} numberOfLines={1} ellipsizeMode="tail">{stat.label}</Text>
                 </TouchableOpacity>
               ))}
             </View>
@@ -407,8 +407,8 @@ const Dashboard = ({ businessData }) => {
               >
                 <View style={styles.menuCardContent}>
                   <Ionicons name="menu" size={24} color="#020A66" />
-                  <Text style={styles.menuCardTitle}>Menu Details</Text>
-                  <Text style={styles.menuCardCount}>
+                  <Text style={styles.menuCardTitle} numberOfLines={1} ellipsizeMode="tail">Menu Details</Text>
+                  <Text style={styles.menuCardCount} numberOfLines={1} ellipsizeMode="tail">
                    Manage Menu
                   </Text>
                 </View>
@@ -419,8 +419,8 @@ const Dashboard = ({ businessData }) => {
               >
                 <View style={styles.menuCardContent}>
                   <Ionicons name="restaurant" size={24} color="#020A66" />
-                  <Text style={styles.menuCardTitle}>Food Items</Text>
-                  <Text style={styles.menuCardCount}>
+                  <Text style={styles.menuCardTitle} numberOfLines={1} ellipsizeMode="tail">Food Items</Text>
+                  <Text style={styles.menuCardCount} numberOfLines={1} ellipsizeMode="tail">
                     {statsLoading ? '...' : `${stats.totalItems} items`}
                   </Text>
                 </View>
@@ -432,8 +432,8 @@ const Dashboard = ({ businessData }) => {
               >
                 <View style={styles.menuCardContent}>
                   <Ionicons name="pricetag" size={24} color="#10B981" />
-                  <Text style={styles.menuCardTitle}>Categories</Text>
-                  <Text style={styles.menuCardCount}>
+                  <Text style={styles.menuCardTitle} numberOfLines={1} ellipsizeMode="tail">Categories</Text>
+                  <Text style={styles.menuCardCount} numberOfLines={1} ellipsizeMode="tail">
                     {statsLoading ? '...' : `${stats.totalCategories} categories`}
                   </Text>
                 </View>
@@ -460,8 +460,8 @@ const Dashboard = ({ businessData }) => {
                 <View style={[styles.menuIcon, { backgroundColor: item.color + '20' }]}>
                   <Ionicons name={item.icon} size={28} color={item.color} />
                 </View>
-                <Text style={styles.menuTitle}>{item.title}</Text>
-                <Text style={styles.menuSubtitle}>{item.subtitle}</Text>
+                <Text style={styles.menuTitle} numberOfLines={1} ellipsizeMode="tail">{item.title}</Text>
+                <Text style={styles.menuSubtitle} numberOfLines={1} ellipsizeMode="tail">{item.subtitle}</Text>
                 {item.badge && (
                   <View style={styles.badge}>
                     <Text style={styles.badgeText}>{item.badge}</Text>
@@ -498,20 +498,20 @@ const Dashboard = ({ businessData }) => {
             {activitiesLoading && activities.length === 0 ? (
             <View style={styles.activityLoadingContainer}>
               <ActivityIndicator size="large" color="#007AFF" />
-              <Text style={styles.activityLoadingText}>Loading activities...</Text>
+              <Text style={styles.activityLoadingText} numberOfLines={1} ellipsizeMode="tail">Loading activities...</Text>
             </View>
           ) : activitiesError ? (
               <View style={styles.activityErrorContainer}>
                 <Ionicons name="alert-circle" size={24} color="#EF4444" />
                 <Text style={styles.activityErrorText}>Failed to load activities</Text>
                 <TouchableOpacity onPress={refreshActivities} style={styles.retryButton}>
-                  <Text style={styles.retryText}>Retry</Text>
+                  <Text style={styles.retryText} numberOfLines={1} ellipsizeMode="tail">Retry</Text>
                 </TouchableOpacity>
               </View>
             ) : activities.length === 0 ? (
               <View style={styles.activityEmptyContainer}>
                 <Ionicons name="time-outline" size={32} color="#9CA3AF" />
-                <Text style={styles.activityEmptyText}>No recent activities</Text>
+                <Text style={styles.activityEmptyText} numberOfLines={1} ellipsizeMode="tail">No recent activities</Text>
                 <Text style={styles.activityEmptySubtext}>
                   Real-time activities will appear here when customers place orders, you update your menu, or other business events occur
                 </Text>
@@ -553,20 +553,20 @@ const Dashboard = ({ businessData }) => {
           {ordersLoading ? (
             <View style={styles.errorContainer}>
               <ActivityIndicator size="large" color="#020A66" />
-              <Text style={styles.activityLoadingText}>Loading orders...</Text>
+              <Text style={styles.activityLoadingText} numberOfLines={1} ellipsizeMode="tail">Loading orders...</Text>
             </View>
           ) : ordersError ? (
             <View style={styles.errorContainer}>
               <Ionicons name="alert-circle" size={24} color="#EF4444" />
-              <Text style={styles.errorText}>{ordersError}</Text>
+              <Text style={styles.errorText} numberOfLines={1} ellipsizeMode="tail">{ordersError}</Text>
               <TouchableOpacity onPress={fetchOrders} style={styles.retryButton}>
-                <Text style={styles.retryText}>Tap to retry</Text>
+                <Text style={styles.retryText} numberOfLines={1} ellipsizeMode="tail">Tap to retry</Text>
               </TouchableOpacity>
             </View>
           ) : orders.length === 0 ? (
             <View style={styles.activityEmptyContainer}>
               <Ionicons name="cube-outline" size={32} color="#9CA3AF" />
-              <Text style={styles.activityEmptyText}>No orders yet</Text>
+              <Text style={styles.activityEmptyText} numberOfLines={1} ellipsizeMode="tail">No orders yet</Text>
             </View>
           ) : (
             <View style={{ gap: 12 }}>

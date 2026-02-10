@@ -4,6 +4,8 @@ import {
   Text,
   StyleSheet,
   SafeAreaView,
+  ScrollView,
+  RefreshControl,
   TouchableOpacity,
   Image,
   ActivityIndicator,
@@ -12,10 +14,31 @@ import {
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { logout } from '../../../lib/api/auth';
+import { getVendorStatus } from '../../../lib/api/vendorStatus';
 
 const VerificationPending = ({ vendorData }) => {
   const router = useRouter();
   const [isLoggingOut, setIsLoggingOut] = React.useState(false);
+  const [refreshing, setRefreshing] = React.useState(false);
+  const [currentStatus, setCurrentStatus] = React.useState(vendorData?.status || 'under_verification');
+
+  const handleRefresh = async () => {
+    try {
+      setRefreshing(true);
+      const statusResp = await getVendorStatus();
+      const status = statusResp?.status || statusResp?.data?.status;
+      if (status) {
+        setCurrentStatus(status);
+      }
+      if (status && status !== 'under_verification') {
+        router.replace('/home');
+      }
+    } catch (error) {
+      console.error('Error refreshing vendor status:', error);
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   const handleLogout = async () => {
     Alert.alert(
@@ -86,7 +109,11 @@ const VerificationPending = ({ vendorData }) => {
         </TouchableOpacity>
       </View>
 
-      <View style={styles.content}>
+      <ScrollView 
+        style={styles.content}
+        showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}
+      >
         <View style={styles.iconContainer}>
           <View style={styles.iconWrapper}>
             <Ionicons name="time-outline" size={60} color="#F59E0B" />
@@ -106,7 +133,7 @@ const VerificationPending = ({ vendorData }) => {
               <Ionicons name="person-outline" size={20} color="#6B7280" />
               <Text style={styles.statusTitle}>Account Status</Text>
             </View>
-            <Text style={styles.statusValue}>Under Verification</Text>
+            <Text style={styles.statusValue}>{currentStatus === 'under_verification' ? 'Under Verification' : currentStatus}</Text>
             <Text style={styles.statusDescription}>
               Our team is reviewing your application and documents. This process typically takes 1-3 business days.
             </Text>
@@ -150,7 +177,7 @@ const VerificationPending = ({ vendorData }) => {
             <Text style={styles.supportButtonText}>Contact Support</Text>
           </TouchableOpacity>
         </View>
-      </View>
+      </ScrollView>
     </SafeAreaView>
   );
 };

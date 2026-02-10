@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { getDashboardStats, parseDashboardStats } from '../lib/api/vendorDashboard';
+import { getMenuItems } from '../lib/api/vendorMenuItems';
+import { getMenuCategories } from '../lib/api/vendorMenu';
 
 /**
  * Custom hook for fetching and managing dashboard statistics
@@ -39,8 +41,53 @@ export const useDashboardAPI = (options = {}) => {
       console.log('📊 Fetching dashboard statistics from API...');
       
       const response = await getDashboardStats();
-      const parsedStats = parseDashboardStats(response);
-      
+      let parsedStats = parseDashboardStats(response);
+
+      // Fallback: If API returns 0 counts, compute locally from menu endpoints
+      let itemsCount = parsedStats.totalItems;
+      let categoriesCount = parsedStats.totalCategories;
+
+      const computeItemsCount = (data) => {
+        if (!data) return 0;
+        if (Array.isArray(data)) return data.length;
+        if (Array.isArray(data.data)) return data.data.length;
+        if (Array.isArray(data.items)) return data.items.length;
+        if (data.data && Array.isArray(data.data.data)) return data.data.data.length;
+        if (Array.isArray(data.menu_items)) return data.menu_items.length;
+        if (data.data && Array.isArray(data.data.items)) return data.data.items.length;
+        return 0;
+      };
+
+      const computeCategoriesCount = (data) => {
+        if (!data) return 0;
+        if (Array.isArray(data)) return data.length;
+        if (Array.isArray(data.data)) return data.data.length;
+        if (data.data && Array.isArray(data.data.data)) return data.data.data.length;
+        if (Array.isArray(data.categories)) return data.categories.length;
+        if (data.data && Array.isArray(data.data.categories)) return data.data.categories.length;
+        return 0;
+      };
+
+      try {
+        if (!itemsCount || itemsCount === 0) {
+          const itemsResp = await getMenuItems();
+          itemsCount = computeItemsCount(itemsResp);
+        }
+      } catch {}
+
+      try {
+        if (!categoriesCount || categoriesCount === 0) {
+          const categoriesResp = await getMenuCategories();
+          categoriesCount = computeCategoriesCount(categoriesResp);
+        }
+      } catch {}
+
+      parsedStats = {
+        ...parsedStats,
+        totalItems: itemsCount,
+        totalCategories: categoriesCount,
+      };
+
       setStats(parsedStats);
       setLastUpdated(new Date());
       

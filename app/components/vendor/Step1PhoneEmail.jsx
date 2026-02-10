@@ -184,8 +184,8 @@ const Step1PhoneEmail = ({ formData, setFormData, onNext }) => {
               resizeMode="contain"
             />
           </View>
-          <Text style={styles.title}>Grow your food business</Text>
-          <Text style={styles.subtitle}>with PHP Bell</Text>
+          <Text style={styles.title} numberOfLines={1} ellipsizeMode="tail">Grow your food business</Text>
+          <Text style={styles.subtitle} numberOfLines={1} ellipsizeMode="tail">with PHP Bell</Text>
         </View>
 
         {/* Form */}
@@ -227,7 +227,7 @@ const Step1PhoneEmail = ({ formData, setFormData, onNext }) => {
             onPress={handleSendOTP}
             disabled={phoneNumber.length < 10}
           >
-            <Text style={styles.sendButtonText}>Send OTP</Text>
+            <Text style={styles.sendButtonText} numberOfLines={1} ellipsizeMode="tail">Send OTP</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>

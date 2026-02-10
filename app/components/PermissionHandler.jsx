@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, Alert, TouchableOpacity, Platform } from 'react-native';
+import { View, Text, StyleSheet, Alert, TouchableOpacity, Platform, ScrollView } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
@@ -10,6 +11,7 @@ import { Audio } from 'expo-av';
 const PermissionHandler = ({ onPermissionsGranted, children }) => {
   const [permissionsGranted, setPermissionsGranted] = useState(false);
   const [isRequesting, setIsRequesting] = useState(false);
+  const [initialized, setInitialized] = useState(false);
   const [permissionStatus, setPermissionStatus] = useState({
     camera: 'pending',
     mediaLibrary: 'pending',
@@ -65,7 +67,20 @@ const PermissionHandler = ({ onPermissionsGranted, children }) => {
   ];
 
   useEffect(() => {
-    checkExistingPermissions();
+    const init = async () => {
+      try {
+        const completed = await AsyncStorage.getItem('permissions_completed');
+        if (completed === 'true') {
+          setPermissionsGranted(true);
+          onPermissionsGranted();
+        } else {
+          await checkExistingPermissions();
+        }
+      } finally {
+        setInitialized(true);
+      }
+    };
+    init();
   }, []);
 
   const checkExistingPermissions = async () => {
@@ -92,6 +107,7 @@ const PermissionHandler = ({ onPermissionsGranted, children }) => {
       });
 
       if (allGranted) {
+        await AsyncStorage.setItem('permissions_completed', 'true');
         setPermissionsGranted(true);
         onPermissionsGranted();
       }
@@ -119,6 +135,7 @@ const PermissionHandler = ({ onPermissionsGranted, children }) => {
       setPermissionStatus(newStatus);
 
       if (allGranted) {
+        await AsyncStorage.setItem('permissions_completed', 'true');
         setPermissionsGranted(true);
         onPermissionsGranted();
       } else {
@@ -179,13 +196,17 @@ const PermissionHandler = ({ onPermissionsGranted, children }) => {
     return children;
   }
 
+  if (!initialized) {
+    return null;
+  }
+
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.content}>
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
           <Ionicons name="shield-checkmark-outline" size={60} color="#020A66" />
-          <Text style={styles.title}>App Permissions</Text>
-          <Text style={styles.subtitle}>
+          <Text style={styles.title} numberOfLines={1} ellipsizeMode="tail">App Permissions</Text>
+          <Text style={styles.subtitle} numberOfLines={1} ellipsizeMode="tail">
             PHPBells needs access to these features to provide the best experience
           </Text>
         </View>
@@ -197,8 +218,8 @@ const PermissionHandler = ({ onPermissionsGranted, children }) => {
                 <Ionicons name={permission.icon} size={24} color="#020A66" />
               </View>
               <View style={styles.permissionContent}>
-                <Text style={styles.permissionName}>{permission.name}</Text>
-                <Text style={styles.permissionDescription}>{permission.description}</Text>
+                <Text style={styles.permissionName} numberOfLines={1} ellipsizeMode="tail">{permission.name}</Text>
+                <Text style={styles.permissionDescription} numberOfLines={1} ellipsizeMode="tail">{permission.description}</Text>
               </View>
               <View style={styles.permissionStatus}>
                 {getStatusIcon(permissionStatus[permission.key])}
@@ -208,7 +229,7 @@ const PermissionHandler = ({ onPermissionsGranted, children }) => {
         </View>
 
         <View style={styles.footer}>
-          <Text style={styles.footerText}>
+          <Text style={styles.footerText} numberOfLines={1} ellipsizeMode="tail">
             These permissions help us provide features like photo uploads, location services, and customer support.
           </Text>
           
@@ -217,7 +238,7 @@ const PermissionHandler = ({ onPermissionsGranted, children }) => {
             onPress={requestAllPermissions}
             disabled={isRequesting}
           >
-            <Text style={styles.buttonText}>
+            <Text style={styles.buttonText} numberOfLines={1} ellipsizeMode="tail" adjustsFontSizeToFit minimumFontScale={0.8}>
               {isRequesting ? 'Requesting Permissions...' : 'Grant Permissions'}
             </Text>
           </TouchableOpacity>
@@ -229,10 +250,10 @@ const PermissionHandler = ({ onPermissionsGranted, children }) => {
               onPermissionsGranted();
             }}
           >
-            <Text style={styles.skipButtonText}>Skip for now</Text>
+            <Text style={styles.skipButtonText} numberOfLines={1} ellipsizeMode="tail">Skip for now</Text>
           </TouchableOpacity>
         </View>
-      </View>
+      </ScrollView>
     </SafeAreaView>
   );
 };
@@ -243,7 +264,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
   },
   content: {
-    flex: 1,
     paddingHorizontal: 24,
     paddingVertical: 32,
   },

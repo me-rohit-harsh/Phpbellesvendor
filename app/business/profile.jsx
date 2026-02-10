@@ -337,13 +337,18 @@ const ProfileManagement = () => {
       <Text style={styles.inputLabel}>{label}</Text>
       <TextInput
         style={[styles.input, multiline && styles.textArea]}
-        value={value}
+        value={value ?? ''}
         onChangeText={onChangeText}
         placeholder={placeholder}
         editable={isEditing}
         keyboardType={keyboardType}
         multiline={multiline}
         numberOfLines={multiline ? 3 : 1}
+        autoCapitalize={multiline ? 'sentences' : 'words'}
+        autoCorrect={false}
+        placeholderTextColor="#9CA3AF"
+        blurOnSubmit={!multiline}
+        returnKeyType={multiline ? 'default' : 'done'}
       />
     </View>
   ), [isEditing]);
@@ -459,7 +464,7 @@ const ProfileManagement = () => {
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color="#020A66" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Business Profile</Text>
+        <Text style={styles.headerTitle} numberOfLines={1} ellipsizeMode="tail">Business Profile</Text>
         <TouchableOpacity 
           style={styles.editButton}
           onPress={() => isEditing ? handleSave() : setIsEditing(true)}
@@ -525,12 +530,16 @@ const ProfileManagement = () => {
             value={profileData.restaurant_name}
             onChangeText={(text) => setProfileData(prev => ({ ...prev, restaurant_name: text }))}
             placeholder="Enter restaurant name"
+            keyboardType="default"
+            multiline={false}
           />
           <InputField
             label="Owner Name"
             value={profileData.name}
             onChangeText={(text) => setProfileData(prev => ({ ...prev, name: text }))}
             placeholder="Enter owner name"
+            keyboardType="default"
+            multiline={false}
           />
           <InputField
             label="Email"
@@ -724,7 +733,7 @@ const ProfileManagement = () => {
             onPress={() => router.push('/vendor/wallet')}
           >
             <Ionicons name="wallet" size={20} color="#FFFFFF" />
-            <Text style={styles.primaryButtonText}>Wallet & Earnings</Text>
+            <Text style={styles.primaryButtonText} numberOfLines={1} ellipsizeMode="tail">Wallet & Earnings</Text>
           </TouchableOpacity>
 
           <TouchableOpacity 
@@ -774,7 +783,7 @@ const ProfileManagement = () => {
             }}
           >
             <Ionicons name="log-out-outline" size={20} color="#EF4444" />
-            <Text style={styles.dangerButtonText}>Logout</Text>
+            <Text style={styles.dangerButtonText} numberOfLines={1} ellipsizeMode="tail">Logout</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>

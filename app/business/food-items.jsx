@@ -158,7 +158,7 @@ const FoodItemsManagement = () => {
       // Normalize menu items to ensure consistent category and stock fields for filtering
       const normalizedItems = menuItems.map(item => {
         // Get category name from various possible fields with better priority
-        let categoryName = 'Uncategorized';
+        let categoryName = '';
         
         // First try to map using menu_category_id and loaded categories
         if (item.menu_category_id && availableCategories.length > 0) {
@@ -285,15 +285,14 @@ const FoodItemsManagement = () => {
         // Store full category objects for API calls (keep original structure)
         setCategoryObjects(categoryList);
         
-        // Create display categories with id and name, add 'All' at the beginning and 'Uncategorized' at the end
+        // Create display categories with id and name, add 'All' at the beginning
         const displayCategories = categoryList.map(cat => ({
           id: cat.id || cat.category_id,
           name: cat.name || cat.category_name || cat.title || cat
         }));
         const allCategories = [
           { id: 'all', name: 'All' }, 
-          ...displayCategories,
-          { id: 'uncategorized', name: 'Uncategorized' }
+          ...displayCategories
         ];
         
         console.info('📋 Final categories list from API:', allCategories);
@@ -306,10 +305,10 @@ const FoodItemsManagement = () => {
         
         return categoryList; // Return the loaded categories
       } else {
-        // No categories from API, use fallback
-        console.info('⚠️ No categories from API, using fallback categories');
-        setCategories(fallbackCategories);
-        setNewItem(prev => ({ ...prev, category: 'Main Course' }));
+        // No categories from API: show only 'All' and hide 'Uncategorized'
+        console.info('⚠️ No categories from API, showing only "All" filter');
+        setCategories([{ id: 'all', name: 'All' }]);
+        setNewItem(prev => ({ ...prev, category: '' }));
         return []; // Return empty array for fallback
       }
     } catch (error) {
@@ -339,7 +338,7 @@ const FoodItemsManagement = () => {
     } else {
       console.info('🏷️ Loading items for category:', category.name, 'ID:', category.id);
       // Load items for the specific category
-      await loadMenuItems(category.id);
+      await loadMenuItems(String(category.id));
     }
   }, [loadMenuItems]); // Depend on loadMenuItems since we call it
 
@@ -387,7 +386,7 @@ const FoodItemsManagement = () => {
                          (item.name && item.name.toLowerCase().includes(searchQuery.toLowerCase()));
     
     // Use the normalized category field for filtering
-    const itemCategory = item.category || 'Uncategorized';
+    const itemCategory = item.category || '';
     
     // Category matching logic
     let matchesCategory = false;
@@ -395,9 +394,6 @@ const FoodItemsManagement = () => {
     if (selectedCategory === 'All' || !selectedCategory) {
       // Show all items when 'All' is selected
       matchesCategory = true;
-    } else if (selectedCategory === 'Uncategorized') {
-      // Show only uncategorized items when 'Uncategorized' is selected
-      matchesCategory = itemCategory === 'Uncategorized';
     } else {
       // For specific categories, try exact match first, then case-insensitive
       matchesCategory = itemCategory === selectedCategory || 
@@ -822,15 +818,15 @@ const FoodItemsManagement = () => {
             )}
           </View>
         <View style={styles.itemInfo}>
-          <Text style={styles.itemName}>{item.name}</Text>
-          <Text style={styles.itemCategory}>{item.category}</Text>
-          <Text style={styles.itemPrice}>₹{item.price}</Text>
+          <Text style={styles.itemName} numberOfLines={1} ellipsizeMode="tail">{item.name}</Text>
+          <Text style={styles.itemCategory} numberOfLines={1} ellipsizeMode="tail">{item.category}</Text>
+          <Text style={styles.itemPrice} numberOfLines={1} ellipsizeMode="tail">₹{item.price}</Text>
           <Text style={styles.itemDescription} numberOfLines={1}>
             {item.description}
           </Text>
           <View style={styles.stockInfo}>
             <View style={[styles.stockIndicator, { backgroundColor: (item.is_available !== undefined ? item.is_available : item.inStock) ? '#10B981' : '#EF4444' }]} />
-            <Text style={styles.stockText}>
+            <Text style={styles.stockText} numberOfLines={1} ellipsizeMode="tail">
               {(item.is_available !== undefined ? item.is_available : item.inStock) ? `Stock: ${item.quantity || 'Available'}` : 'Out of Stock'}
             </Text>
           </View>
@@ -912,7 +908,7 @@ const FoodItemsManagement = () => {
             <Text style={[
               styles.categoryText,
               selectedCategory === category.name && styles.selectedCategoryText
-            ]}>
+            ]} numberOfLines={1} ellipsizeMode="tail">
               {category.name}
             </Text>
           </TouchableOpacity>
@@ -923,8 +919,8 @@ const FoodItemsManagement = () => {
       <ScrollView style={styles.itemsList} showsVerticalScrollIndicator={false}>
         {loading ? (
           <View style={styles.emptyState}>
-            <Text style={styles.emptyStateText}>Loading menu items...</Text>
-            <Text style={styles.emptyStateSubtext}>Please wait while we fetch your food items</Text>
+            <Text style={styles.emptyStateText} numberOfLines={1} ellipsizeMode="tail">Loading menu items...</Text>
+            <Text style={styles.emptyStateSubtext} numberOfLines={1} ellipsizeMode="tail">Please wait while we fetch your food items</Text>
           </View>
         ) : filteredItems.length > 0 ? (
           filteredItems.map((item) => (
@@ -932,8 +928,8 @@ const FoodItemsManagement = () => {
           ))
         ) : (
           <View style={styles.emptyState}>
-            <Text style={styles.emptyStateText}>No food items found</Text>
-            <Text style={styles.emptyStateSubtext}>Add your first food item to get started</Text>
+            <Text style={styles.emptyStateText} numberOfLines={1} ellipsizeMode="tail">No food items found</Text>
+            <Text style={styles.emptyStateSubtext} numberOfLines={1} ellipsizeMode="tail">Add your first food item to get started</Text>
           </View>
         )}
       </ScrollView>
@@ -995,7 +991,7 @@ const FoodItemsManagement = () => {
                       <Text style={[
                         styles.categorySelectorText,
                         newItem.category === category.name && styles.selectedCategorySelectorText
-                      ]}>
+                      ]} numberOfLines={1} ellipsizeMode="tail">
                         {category.name}
                       </Text>
                     </TouchableOpacity>
@@ -1521,7 +1517,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#F3F4F6',
     borderRadius: 10,
     paddingHorizontal: 15,
-    paddingVertical: 12,
+    paddingVertical: 0,
   },
   searchInput: {
     flex: 1,

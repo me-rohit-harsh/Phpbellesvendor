@@ -60,7 +60,7 @@ const CategoryCard = ({ category, onPress, onEdit, onDelete }) => {
           <View style={styles.statsContainer}>
             <View style={styles.statItem}>
               <Ionicons name="restaurant" size={14} color="#6B7280" />
-              <Text style={styles.statText}>
+              <Text style={styles.statText} numberOfLines={1} ellipsizeMode="tail">
                 {category.items_count || 0} items
               </Text>
             </View>
