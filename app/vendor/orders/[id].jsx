@@ -38,11 +38,103 @@ const OrderDetailsScreen = () => {
     }, [fetchOrder])
   );
 
-  const getCustomerName = () => order?.customer_name ?? order?.user?.name ?? order?.customer?.name;
+  const formatAddress = (addr) => {
+    if (!addr) return null;
+    if (typeof addr === 'string') return addr;
+    const pickFromObject = (obj) => {
+      if (!obj || typeof obj !== 'object') return null;
+      const parts = [
+        obj.full_address ?? obj.fullAddress,
+        obj.address ?? obj.address1 ?? obj.line1 ?? obj.street,
+        obj.address2 ?? obj.line2,
+        obj.house ?? obj.building ?? obj.apartment,
+        obj.landmark,
+        obj.area ?? obj.locality ?? obj.neighborhood,
+        obj.city ?? obj.town ?? obj.district,
+        obj.state ?? obj.region,
+        obj.pincode ?? obj.postal_code ?? obj.zip,
+        obj.country,
+      ];
+      const text = parts.filter((p) => p && String(p).trim().length).join(', ');
+      if (text && text.trim().length) return text;
+      if (obj.latitude && obj.longitude) {
+        return `${obj.latitude}, ${obj.longitude}`;
+      }
+      if (Array.isArray(obj.coordinates) && obj.coordinates.length >= 2) {
+        return `${obj.coordinates[0]}, ${obj.coordinates[1]}`;
+      }
+      return null;
+    };
+    if (Array.isArray(addr)) {
+      const pieces = addr
+        .map((el) => (typeof el === 'string' ? el : pickFromObject(el)))
+        .filter((p) => p && String(p).trim().length);
+      return pieces.join(', ');
+    }
+    if (typeof addr === 'object') {
+      return pickFromObject(addr) ?? String(addr);
+    }
+    return String(addr);
+  };
+
+  const computeTotal = (o) => {
+    const candidates = [o?.total, o?.grand_total, o?.amount, o?.price];
+    const firstValid = candidates.find((v) => v !== null && v !== undefined && Number(v) > 0);
+    if (firstValid !== undefined) return Number(firstValid);
+    const items = o?.items ?? o?.order_items ?? [];
+    if (Array.isArray(items) && items.length > 0) {
+      const sum = items.reduce((acc, it) => {
+        const qty = Number(it?.qty ?? it?.quantity ?? it?.count ?? 1);
+        const unit = Number(it?.price ?? it?.unit_price ?? it?.amount ?? it?.total ?? 0);
+        return acc + (Number.isFinite(qty) && Number.isFinite(unit) ? qty * unit : 0);
+      }, 0);
+      if (sum > 0) return sum;
+    }
+    const fees = Number(o?.delivery_fee ?? o?.shipping_fee ?? 0);
+    const taxes = Number(o?.tax ?? o?.taxes ?? 0);
+    const subtotal = Number(o?.subtotal ?? 0);
+    return subtotal + fees + taxes;
+  };
+
+  const getCustomerName = () => {
+    const direct =
+      order?.customer_name ??
+      order?.customerName ??
+      order?.name ??
+      order?.full_name ??
+      order?.fullName;
+    if (direct && String(direct).trim().length) return String(direct).trim();
+    const fromUser =
+      order?.user?.name ??
+      (order?.user?.first_name && order?.user?.last_name
+        ? `${order.user.first_name} ${order.user.last_name}`
+        : null) ??
+      order?.user?.full_name;
+    if (fromUser && String(fromUser).trim().length) return String(fromUser).trim();
+    const fromCustomer =
+      order?.customer?.name ??
+      (order?.customer?.first_name && order?.customer?.last_name
+        ? `${order.customer.first_name} ${order.customer.last_name}`
+        : null) ??
+      order?.customer?.full_name;
+    if (fromCustomer && String(fromCustomer).trim().length) return String(fromCustomer).trim();
+    const fromContact = order?.contact?.name;
+    if (fromContact && String(fromContact).trim().length) return String(fromContact).trim();
+    return '';
+  };
   const getCustomerPhone = () => order?.customer_phone ?? order?.user?.phone ?? order?.customer?.phone;
-  const getCustomerAddress = () => order?.address ?? order?.delivery_address ?? order?.shipping_address;
+  const getCustomerAddress = () =>
+    formatAddress(
+      order?.address ??
+        order?.delivery_address ??
+        order?.shipping_address ??
+        order?.customer?.address ??
+        order?.user?.address ??
+        order?.location ??
+        order?.coordinates
+    );
   const getStatus = () => order?.status ?? order?.order_status;
-  const getTotal = () => order?.total ?? order?.grand_total ?? order?.amount;
+  const getTotal = () => computeTotal(order);
   const getItems = () => order?.items ?? order?.order_items ?? [];
   const getRider = () => order?.rider ?? order?.delivery_partner ?? null;
 

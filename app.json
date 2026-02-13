@@ -70,7 +70,9 @@
           "sounds": [],
           "mode": "production"
         }
-      ]
+      ],
+      "@react-native-community/datetimepicker",
+      "expo-router"
     ],
     "updates": {
       "enabled": true,

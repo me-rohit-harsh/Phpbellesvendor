@@ -49,10 +49,56 @@ const OrdersScreen = () => {
     setRefreshing(false);
   }, [fetchOrders]);
 
+  const getCustomerDisplayName = (order) => {
+    const direct =
+      order?.customer_name ??
+      order?.customerName ??
+      order?.name ??
+      order?.full_name ??
+      order?.fullName;
+    if (direct && String(direct).trim().length) return String(direct).trim();
+    const fromUser =
+      order?.user?.name ??
+      (order?.user?.first_name && order?.user?.last_name
+        ? `${order.user.first_name} ${order.user.last_name}`
+        : null) ??
+      order?.user?.full_name;
+    if (fromUser && String(fromUser).trim().length) return String(fromUser).trim();
+    const fromCustomer =
+      order?.customer?.name ??
+      (order?.customer?.first_name && order?.customer?.last_name
+        ? `${order.customer.first_name} ${order.customer.last_name}`
+        : null) ??
+      order?.customer?.full_name;
+    if (fromCustomer && String(fromCustomer).trim().length) return String(fromCustomer).trim();
+    const fromContact = order?.contact?.name;
+    if (fromContact && String(fromContact).trim().length) return String(fromContact).trim();
+    return '';
+  };
+
+  const computeTotal = (order) => {
+    const candidates = [order?.total, order?.grand_total, order?.amount, order?.price];
+    const firstValid = candidates.find((v) => v !== null && v !== undefined && Number(v) > 0);
+    if (firstValid !== undefined) return Number(firstValid);
+    const items = order?.items ?? order?.order_items ?? [];
+    if (Array.isArray(items) && items.length > 0) {
+      const sum = items.reduce((acc, it) => {
+        const qty = Number(it?.qty ?? it?.quantity ?? it?.count ?? 1);
+        const unit = Number(it?.price ?? it?.unit_price ?? it?.amount ?? it?.total ?? 0);
+        return acc + (Number.isFinite(qty) && Number.isFinite(unit) ? qty * unit : 0);
+      }, 0);
+      if (sum > 0) return sum;
+    }
+    const fees = Number(order?.delivery_fee ?? order?.shipping_fee ?? 0);
+    const taxes = Number(order?.tax ?? order?.taxes ?? 0);
+    const subtotal = Number(order?.subtotal ?? 0);
+    return subtotal + fees + taxes;
+  };
+
   const renderItem = ({ item }) => {
     const id = item?.id ?? item?.order_id ?? item?.uuid;
-    const customerName = item?.customer_name ?? item?.user?.name ?? item?.customer?.name;
-    const total = item?.total ?? item?.grand_total ?? item?.amount;
+    const customerName = getCustomerDisplayName(item);
+    const total = computeTotal(item);
     const status = item?.status ?? item?.order_status;
     const createdAt = item?.created_at ?? item?.createdAt ?? item?.date;
 
