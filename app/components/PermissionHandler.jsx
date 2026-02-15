@@ -6,7 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import * as ImagePicker from 'expo-image-picker';
 // import * as MediaLibrary from 'expo-media-library';
-import { Audio } from 'expo-av';
+import { PermissionsAndroid } from 'react-native';
 
 const PermissionHandler = ({ onPermissionsGranted, children }) => {
   const [permissionsGranted, setPermissionsGranted] = useState(false);
@@ -60,8 +60,11 @@ const PermissionHandler = ({ onPermissionsGranted, children }) => {
       description: 'Record audio for customer support',
       icon: 'mic-outline',
       request: async () => {
-        const { status } = await Audio.requestPermissionsAsync();
-        return status === 'granted';
+        if (Platform.OS === 'android') {
+          const result = await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.RECORD_AUDIO);
+          return result === PermissionsAndroid.RESULTS.GRANTED;
+        }
+        return true;
       }
     }
   ];
@@ -91,7 +94,9 @@ const PermissionHandler = ({ onPermissionsGranted, children }) => {
         ? { status: 'granted' }
         : await ImagePicker.getMediaLibraryPermissionsAsync();
       const locationStatus = await Location.getForegroundPermissionsAsync();
-      const audioStatus = await Audio.getPermissionsAsync();
+      const audioStatus = Platform.OS === 'android'
+        ? { status: await PermissionsAndroid.check(PermissionsAndroid.PERMISSIONS.RECORD_AUDIO) ? 'granted' : 'denied' }
+        : { status: 'granted' };
 
       const allGranted = 
         cameraStatus.status === 'granted' &&

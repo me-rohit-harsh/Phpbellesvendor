@@ -7,9 +7,9 @@ import {
   TouchableOpacity,
   TextInput,
   Modal,
-  SafeAreaView,
   Switch,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import CustomAlert from '../components/CustomAlert';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';

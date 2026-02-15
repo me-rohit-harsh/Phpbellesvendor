@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, SafeAreaView, StatusBar, Platform } from 'react-native';
+import { View, StyleSheet, StatusBar, Platform } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import ProgressBar from '../components/ProgressBar';
 import Step1PhoneEmail from '../components/vendor/Step1PhoneEmail';
 import Step2OTPVerification from '../components/vendor/Step2OTPVerification';

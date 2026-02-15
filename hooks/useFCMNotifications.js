@@ -1,4 +1,7 @@
 import { useEffect, useCallback } from 'react';
+import { Platform } from 'react-native';
+import * as Notifications from 'expo-notifications';
+import * as Device from 'expo-device';
 import fcmService from '../lib/notifications/fcmService';
 import { ToastManager } from '../app/components/NotificationToast';
 import { router } from 'expo-router';
@@ -139,12 +142,23 @@ export const useFCMNotifications = ({
    */
   const registerForNotifications = useCallback(async () => {
     try {
+      if (Platform.OS === 'web') {
+        console.info('Push notifications are not supported on web');
+        return null;
+      }
       const token = await fcmService.registerForPushNotifications();
       if (token) {
         console.info('✅ FCM registration successful');
         return token;
       } else {
-        console.warn('⚠️ FCM registration failed');
+        const { status } = await Notifications.getPermissionsAsync();
+        console.info('⚠️ FCM registration deferred', {
+          isDevice: Device.isDevice,
+          permission: status
+        });
+        setTimeout(() => {
+          fcmService.registerForPushNotifications();
+        }, 3000);
         return null;
       }
     } catch (error) {
