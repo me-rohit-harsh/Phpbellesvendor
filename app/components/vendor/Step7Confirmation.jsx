@@ -22,17 +22,22 @@ const Step7Confirmation = ({ onNext, onBack, formData, setFormData }) => {
         throw new Error('Authentication token not found. Please verify your OTP again.');
       }
 
-      // Map form data to API format
+      const selectedLocation = formData.selectedLocation || null;
       const vendorData = {
         name: formData.fullName,
         restaurant_name: formData.restaurantName,
-        vendor_type_id: formData.vendorTypeId || "1", // Default to 1 if not set
-        food_types: formData.selectedCuisineIds || ["1"], // Use cuisine IDs
+        vendor_type_id: formData.vendorTypeId || "1",
+        food_types: formData.selectedCuisineIds || ["1"],
         description: formData.description || `${formData.restaurantName} - A great place to dine`,
         gst_no: formData.gstNumber,
         fassai_license_no: formData.fssaiLicense,
-        
-        // File uploads
+        address: formData.address || "",
+        landmark: formData.landmark || "",
+        pincode: formData.pincode || "",
+        city: formData.city || "",
+        state: formData.state || "",
+        latitude: selectedLocation?.latitude ?? null,
+        longitude: selectedLocation?.longitude ?? null,
         id_proof: formData.idProof,
         profile_photo: formData.profilePhoto,
         logo: formData.logo,

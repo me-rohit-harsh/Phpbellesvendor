@@ -95,6 +95,8 @@ const Step1PhoneEmail = ({ formData, setFormData, onNext }) => {
     return emailRegex.test(email);
   };
 
+  const canSendOtp = phoneNumber.length === 10 && isValidEmail(email);
+
   const handleSendOTP = async () => {
     if (phoneNumber.length !== 10) {
       showErrorAlert('Please enter a valid 10-digit phone number');
@@ -222,10 +224,10 @@ const Step1PhoneEmail = ({ formData, setFormData, onNext }) => {
           <TouchableOpacity 
             style={[
               styles.sendButton,
-              phoneNumber.length >= 10 ? styles.sendButtonActive : styles.sendButtonInactive
+              canSendOtp ? styles.sendButtonActive : styles.sendButtonInactive
             ]}
             onPress={handleSendOTP}
-            disabled={phoneNumber.length < 10}
+            disabled={!canSendOtp}
           >
             <Text style={styles.sendButtonText} numberOfLines={1} ellipsizeMode="tail">Send OTP</Text>
           </TouchableOpacity>
