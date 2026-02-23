@@ -2849,8 +2849,8 @@ PODS:
     - ReactCommon/turbomodule/core
     - SocketRocket
     - Yoga
-  - SDWebImage/Core (5.21.3)
-  - SDWebImageWebPCoder (0.14.6):
+  - SDWebImage/Core (5.21.6)
+  - SDWebImageWebPCoder (0.15.0):
     - libwebp (~> 1.0)
     - SDWebImage/Core (~> 5.17)
   - SocketRocket (0.7.1)
@@ -3301,8 +3301,8 @@ SPEC CHECKSUMS:
   RNCAsyncStorage: c17c382a58c7db2582aba8f0874e1aa346e6af15
   RNDateTimePicker: e9e210197c267461f70f3f47bec705401ff72077
   RNScreens: 74985ca8e102294a60cec7513fa84c936fa0b20b
-  SDWebImage: 16309af6d214ba3f77a7c6f6fdda888cb313a50a
-  SDWebImageWebPCoder: e38c0a70396191361d60c092933e22c20d5b1380
+  SDWebImage: 1bb6a1b84b6fe87b972a102bdc77dd589df33477
+  SDWebImageWebPCoder: 0e06e365080397465cc73a7a9b472d8a3bd0f377
   SocketRocket: d4aabe649be1e368d1318fdf28a022d714d65748
   Yoga: 728df40394d49f3f471688747cf558158b3a3bd1
 

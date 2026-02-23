@@ -40,22 +40,67 @@ const OrderDetailsScreen = () => {
 
   const formatAddress = (addr) => {
     if (!addr) return null;
-    if (typeof addr === 'string') return addr;
+    if (typeof addr === 'string') return addr.trim();
+    const flat = (arr) =>
+      arr.reduce((acc, v) => acc.concat(Array.isArray(v) ? flat(v) : [v]), []);
+    const fromComponents = (components) => {
+      if (!Array.isArray(components)) return null;
+      const tokens = [];
+      components.forEach((c) => {
+        if (!c) return;
+        if (typeof c === 'string' || typeof c === 'number') {
+          const s = String(c).trim();
+          if (s) tokens.push(s);
+          return;
+        }
+        const v =
+          c.long_name ??
+          c.short_name ??
+          c.name ??
+          c.value ??
+          c.label ??
+          c.text ??
+          c.title ??
+          null;
+        if (v && String(v).trim()) tokens.push(String(v).trim());
+      });
+      const out = Array.from(new Set(tokens)).filter((t) => t && t.length);
+      return out.length ? out.join(', ') : null;
+    };
     const pickFromObject = (obj) => {
       if (!obj || typeof obj !== 'object') return null;
+      if (typeof obj.formatted_address === 'string' && obj.formatted_address.trim()) {
+        return obj.formatted_address.trim();
+      }
+      if (typeof obj.formattedAddress === 'string' && obj.formattedAddress.trim()) {
+        return obj.formattedAddress.trim();
+      }
+      const comp =
+        obj.address_components ??
+        obj.components ??
+        obj.addressParts ??
+        obj.parts ??
+        null;
+      const compText = fromComponents(comp);
+      if (compText) return compText;
       const parts = [
         obj.full_address ?? obj.fullAddress,
-        obj.address ?? obj.address1 ?? obj.line1 ?? obj.street,
+        obj.address ?? obj.address1 ?? obj.line1 ?? obj.street ?? obj.road,
         obj.address2 ?? obj.line2,
-        obj.house ?? obj.building ?? obj.apartment,
+        obj.house ?? obj.house_no ?? obj.houseNo ?? obj.building ?? obj.apartment ?? obj.flat,
+        obj.block,
         obj.landmark,
-        obj.area ?? obj.locality ?? obj.neighborhood,
-        obj.city ?? obj.town ?? obj.district,
-        obj.state ?? obj.region,
-        obj.pincode ?? obj.postal_code ?? obj.zip,
+        obj.area ?? obj.locality ?? obj.neighborhood ?? obj.sublocality,
+        obj.district ?? obj.town,
+        obj.city ?? obj.municipality,
+        obj.state ?? obj.region ?? obj.state_name,
+        obj.pincode ?? obj.postal_code ?? obj.postalCode ?? obj.zip ?? obj.zipcode,
         obj.country,
       ];
-      const text = parts.filter((p) => p && String(p).trim().length).join(', ');
+      const text = parts
+        .map((p) => (p !== undefined && p !== null ? String(p).trim() : ''))
+        .filter((p) => p.length)
+        .join(', ');
       if (text && text.trim().length) return text;
       if (obj.latitude && obj.longitude) {
         return `${obj.latitude}, ${obj.longitude}`;
@@ -63,16 +108,24 @@ const OrderDetailsScreen = () => {
       if (Array.isArray(obj.coordinates) && obj.coordinates.length >= 2) {
         return `${obj.coordinates[0]}, ${obj.coordinates[1]}`;
       }
+      const values = Object.values(obj)
+        .map((v) => (v !== undefined && v !== null ? String(v).trim() : ''))
+        .filter((v) => v.length);
+      if (values.length) return Array.from(new Set(values)).slice(0, 6).join(', ');
       return null;
     };
     if (Array.isArray(addr)) {
-      const pieces = addr
-        .map((el) => (typeof el === 'string' ? el : pickFromObject(el)))
-        .filter((p) => p && String(p).trim().length);
-      return pieces.join(', ');
+      const items = flat(addr).map((el) => {
+        if (typeof el === 'string' || typeof el === 'number') return String(el).trim();
+        if (el && typeof el === 'object') return pickFromObject(el);
+        return null;
+      });
+      const out = items.filter((p) => p && String(p).trim().length);
+      if (out.length) return Array.from(new Set(out)).join(', ');
+      return null;
     }
     if (typeof addr === 'object') {
-      return pickFromObject(addr) ?? String(addr);
+      return pickFromObject(addr) ?? null;
     }
     return String(addr);
   };
