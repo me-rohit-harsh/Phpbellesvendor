@@ -288,7 +288,7 @@ const Dashboard = ({ businessData }) => {
         <View style={styles.headerContent}>
           <View style={styles.headerLeft}>
             <Text style={styles.welcomeText}>Welcome back!</Text>
-            <Text style={styles.businessName}>
+            <Text style={styles.businessName} numberOfLines={1} ellipsizeMode="tail">
               {businessData?.businessName || 'Your Business'}
             </Text>
             <View style={styles.statusContainer}>
@@ -672,7 +672,7 @@ const styles = StyleSheet.create({
     paddingVertical: 15,
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',
-    paddingTop: 50
+    paddingTop: 30
   },
   headerContent: {
     flexDirection: 'row',
@@ -685,7 +685,7 @@ const styles = StyleSheet.create({
     fontFamily: 'MyFont-Regular',
   },
   businessName: {
-    fontSize: 24,
+    fontSize: 14,
     color: '#020A66',
     fontFamily: 'MyFont-Bold',
     marginTop: 2,
@@ -694,11 +694,13 @@ const styles = StyleSheet.create({
   },
   headerLeft: {
     flex: 1,
+    paddingRight: 12,
   },
   headerRight: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
+    marginLeft: 8,
   },
   statusContainer: {
     flexDirection: 'row',

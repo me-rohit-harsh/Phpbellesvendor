@@ -50,30 +50,66 @@ const OrdersScreen = () => {
   }, [fetchOrders]);
 
   const getCustomerDisplayName = (order) => {
-    const direct =
-      order?.customer_name ??
-      order?.customerName ??
-      order?.name ??
-      order?.full_name ??
-      order?.fullName;
-    if (direct && String(direct).trim().length) return String(direct).trim();
-    const fromUser =
-      order?.user?.name ??
-      (order?.user?.first_name && order?.user?.last_name
-        ? `${order.user.first_name} ${order.user.last_name}`
-        : null) ??
-      order?.user?.full_name;
-    if (fromUser && String(fromUser).trim().length) return String(fromUser).trim();
-    const fromCustomer =
-      order?.customer?.name ??
-      (order?.customer?.first_name && order?.customer?.last_name
-        ? `${order.customer.first_name} ${order.customer.last_name}`
-        : null) ??
-      order?.customer?.full_name;
-    if (fromCustomer && String(fromCustomer).trim().length) return String(fromCustomer).trim();
-    const fromContact = order?.contact?.name;
-    if (fromContact && String(fromContact).trim().length) return String(fromContact).trim();
-    return '';
+    const norm = (s) => String(s).replace(/\s+/g, ' ').trim();
+    const bad = (s) => {
+      if (!s) return true;
+      const v = norm(s).toLowerCase();
+      return (
+        v === '' ||
+        v === '-' ||
+        v === '—' ||
+        v === 'customer' ||
+        v === 'guest' ||
+        v === 'user' ||
+        v === 'unknown' ||
+        v === 'na' ||
+        v === 'n/a' ||
+        v === 'null' ||
+        v === 'undefined'
+      );
+    };
+    const join = (a, b) => {
+      const A = a ? norm(a) : '';
+      const B = b ? norm(b) : '';
+      const t = [A, B].filter((x) => x && x.length).join(' ').trim();
+      return t || null;
+    };
+    const pickFrom = (obj) => {
+      if (!obj || typeof obj !== 'object') return null;
+      const fields = [
+        'full_name',
+        'fullName',
+        'customer_full_name',
+        'customerFullName',
+        'customer_name',
+        'customerName',
+        'name',
+        'display_name',
+        'displayName',
+        'contact_name',
+        'shipping_name',
+        'billing_name',
+      ];
+      for (let i = 0; i < fields.length; i++) {
+        const v = obj[fields[i]];
+        if (v && !bad(v)) return norm(v);
+      }
+      const fns = obj.first_name ?? obj.firstName ?? obj.given_name ?? obj.givenName ?? null;
+      const lns = obj.last_name ?? obj.lastName ?? obj.family_name ?? obj.familyName ?? null;
+      const both = join(fns, lns);
+      if (both && !bad(both)) return both;
+      return null;
+    };
+    const cand =
+      pickFrom(order) ||
+      pickFrom(order?.user) ||
+      pickFrom(order?.customer) ||
+      pickFrom(order?.contact) ||
+      pickFrom(order?.address) ||
+      pickFrom(order?.delivery_address) ||
+      pickFrom(order?.shipping_address) ||
+      null;
+    return cand && !bad(cand) ? cand : '';
   };
 
   const computeTotal = (order) => {

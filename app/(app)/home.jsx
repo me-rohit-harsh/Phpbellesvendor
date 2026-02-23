@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Dashboard from "../components/business/Dashboard";
 import VerificationPending from "../components/business/VerificationPending";
-import { getVendorStatus } from "../../lib/api";
+import { getVendorStatus, getVendorProfile } from "../../lib/api";
 import PersistentStorage from "../../lib/storage/persistentStorage";
 
 export default function Home() {
@@ -46,7 +46,7 @@ export default function Home() {
         if (vendorData) {
           const parsedData = JSON.parse(vendorData);
           setBusinessData({
-            businessName: parsedData.restaurantName || "Your Business",
+            businessName: parsedData.restaurantName || parsedData.name || parsedData.businessName || "Your Business",
             phoneNumber: parsedData.phoneNumber || "8176990986",
             isVerified: true,
           });
@@ -55,6 +55,46 @@ export default function Home() {
         // Check vendor approval status
         const statusResponse = await getVendorStatus();
         setVendorStatus(statusResponse);
+        
+        // Fetch vendor profile for accurate business name when verified
+        if (statusResponse?.status === 'verified') {
+          try {
+            const profileResp = await getVendorProfile();
+            const data = profileResp?.data ?? profileResp;
+            const pickName = (obj) => {
+              if (!obj || typeof obj !== 'object') return null;
+              const fields = [
+                'restaurant_name',
+                'restaurantName',
+                'business_name',
+                'businessName',
+                'vendor_name',
+                'vendorName',
+                'name',
+                'title',
+              ];
+              for (let i = 0; i < fields.length; i++) {
+                const v = obj[fields[i]];
+                if (typeof v === 'string' && v.trim().length) return v.trim();
+              }
+              const nested =
+                pickName(obj.vendor) ||
+                pickName(obj.restaurant) ||
+                pickName(obj.business) ||
+                null;
+              if (nested) return nested;
+              return null;
+            };
+            const realName = pickName(data);
+            if (realName) {
+              setBusinessData((prev) => ({
+                ...prev,
+                businessName: realName,
+              }));
+            }
+          } catch (_e) {
+          }
+        }
         
       } catch (error) {
         console.error('Error initializing app:', error);

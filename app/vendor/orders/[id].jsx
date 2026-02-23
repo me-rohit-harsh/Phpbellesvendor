@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { getVendorOrder } from '../../../lib/api/vendorOrders';
 import OrderActionButtons from '../../components/vendor/OrderActionButtons';
 import { ToastManager } from '../../components/NotificationToast';
+import { getAPIConfig } from '../../../lib/api/api';
 
 const OrderDetailsScreen = () => {
   const router = useRouter();
@@ -37,6 +38,9 @@ const OrderDetailsScreen = () => {
       fetchOrder();
     }, [fetchOrder])
   );
+
+  const { baseURL } = getAPIConfig();
+  const API_MEDIA_ROOT = (baseURL || '').replace(/\/$/, '').replace(/\/api$/, '');
 
   const formatAddress = (addr) => {
     if (!addr) return null;
@@ -150,30 +154,70 @@ const OrderDetailsScreen = () => {
   };
 
   const getCustomerName = () => {
-    const direct =
-      order?.customer_name ??
-      order?.customerName ??
-      order?.name ??
-      order?.full_name ??
-      order?.fullName;
-    if (direct && String(direct).trim().length) return String(direct).trim();
-    const fromUser =
-      order?.user?.name ??
-      (order?.user?.first_name && order?.user?.last_name
-        ? `${order.user.first_name} ${order.user.last_name}`
-        : null) ??
-      order?.user?.full_name;
-    if (fromUser && String(fromUser).trim().length) return String(fromUser).trim();
-    const fromCustomer =
-      order?.customer?.name ??
-      (order?.customer?.first_name && order?.customer?.last_name
-        ? `${order.customer.first_name} ${order.customer.last_name}`
-        : null) ??
-      order?.customer?.full_name;
-    if (fromCustomer && String(fromCustomer).trim().length) return String(fromCustomer).trim();
-    const fromContact = order?.contact?.name;
-    if (fromContact && String(fromContact).trim().length) return String(fromContact).trim();
-    return '';
+    const norm = (s) => String(s).replace(/\s+/g, ' ').trim();
+    const bad = (s) => {
+      if (!s) return true;
+      const v = norm(s).toLowerCase();
+      return (
+        v === '' ||
+        v === '-' ||
+        v === '—' ||
+        v === 'customer' ||
+        v === 'guest' ||
+        v === 'user' ||
+        v === 'unknown' ||
+        v === 'na' ||
+        v === 'n/a' ||
+        v === 'null' ||
+        v === 'undefined'
+      );
+    };
+    const join = (a, b) => {
+      const A = a ? norm(a) : '';
+      const B = b ? norm(b) : '';
+      const t = [A, B].filter((x) => x && x.length).join(' ').trim();
+      return t || null;
+    };
+    const pickFrom = (obj) => {
+      if (!obj || typeof obj !== 'object') return null;
+      const fields = [
+        'full_name',
+        'fullName',
+        'customer_full_name',
+        'customerFullName',
+        'customer_name',
+        'customerName',
+        'name',
+        'display_name',
+        'displayName',
+        'contact_name',
+        'shipping_name',
+        'billing_name',
+      ];
+      for (let i = 0; i < fields.length; i++) {
+        const v = obj[fields[i]];
+        if (v && !bad(v)) return norm(v);
+      }
+      const fns = obj.first_name ?? obj.firstName ?? obj.given_name ?? obj.givenName ?? null;
+      const lns = obj.last_name ?? obj.lastName ?? obj.family_name ?? obj.familyName ?? null;
+      const both = join(fns, lns);
+      if (both && !bad(both)) return both;
+      return null;
+    };
+    const tryAll = () => {
+      const cand =
+        pickFrom(order) ||
+        pickFrom(order?.user) ||
+        pickFrom(order?.customer) ||
+        pickFrom(order?.contact) ||
+        pickFrom(order?.address) ||
+        pickFrom(order?.delivery_address) ||
+        pickFrom(order?.shipping_address) ||
+        null;
+      if (cand && !bad(cand)) return cand;
+      return '';
+    };
+    return tryAll();
   };
   const getCustomerPhone = () => order?.customer_phone ?? order?.user?.phone ?? order?.customer?.phone;
   const getCustomerAddress = () =>
@@ -188,8 +232,187 @@ const OrderDetailsScreen = () => {
     );
   const getStatus = () => order?.status ?? order?.order_status;
   const getTotal = () => computeTotal(order);
-  const getItems = () => order?.items ?? order?.order_items ?? [];
+  const getItems = () => {
+    const pick = (src) => {
+      if (!src) return null;
+      if (Array.isArray(src)) return src;
+      if (typeof src === 'object') {
+        if (Array.isArray(src.data)) return src.data;
+        if (Array.isArray(src.items)) return src.items;
+        const vals = Object.values(src);
+        return Array.isArray(vals) && vals.length ? vals : null;
+      }
+      return null;
+    };
+    const candidates = [
+      order?.items,
+      order?.order_items,
+      order?.orderItems,
+      order?.products,
+      order?.line_items,
+      order?.lines,
+      order?.ordered_items,
+      order?.order_details,
+      order?.details,
+      order?.order?.items,
+      order?.order?.order_items,
+      order?.order?.details,
+      order?.cart?.items,
+      order?.data?.items,
+      order?.order_data?.items,
+      order?.orderData?.items,
+      order?.cart_items,
+      order?.menu_items,
+      order?.food_items,
+    ];
+    for (let i = 0; i < candidates.length; i++) {
+      const arr = pick(candidates[i]);
+      if (arr && arr.length) return arr;
+    }
+    return [];
+  };
   const getRider = () => order?.rider ?? order?.delivery_partner ?? null;
+
+  const normalizeUrl = (url) => {
+    if (!url) return null;
+    const s = String(url).trim();
+    if (!s) return null;
+    if (/^(https?:|data:|file:|content:)/i.test(s)) return s;
+    if (s.startsWith('//')) return `https:${s}`;
+    const root = API_MEDIA_ROOT || '';
+    const path = s.replace(/^\/+/, '');
+    return root ? `${root}/${path}` : s;
+  };
+
+  const resolveImageFrom = (src) => {
+    if (!src) return null;
+    if (typeof src === 'string') return normalizeUrl(src);
+    if (Array.isArray(src)) {
+      for (let i = 0; i < src.length; i++) {
+        const u = resolveImageFrom(src[i]);
+        if (u) return u;
+      }
+      return null;
+    }
+    if (typeof src === 'object') {
+      const fields = [
+        'asset_url',
+        'image_url',
+        'image',
+        'photo',
+        'picture',
+        'thumbnail',
+        'thumb',
+        'product_image',
+        'product_image_url',
+        'featured_image',
+        'featuredImage',
+        'image_path',
+        'imagePath',
+        'imageURL',
+        'imageUri',
+        'url',
+        'uri',
+        'src',
+      ];
+      for (let i = 0; i < fields.length; i++) {
+        const f = fields[i];
+        if (src[f]) {
+          const u = resolveImageFrom(src[f]);
+          if (u) return u;
+        }
+      }
+      if (Array.isArray(src.images) && src.images.length) {
+        const u = resolveImageFrom(src.images[0]);
+        if (u) return u;
+      }
+      if (Array.isArray(src.media) && src.media.length) {
+        const u = resolveImageFrom(src.media[0]);
+        if (u) return u;
+      }
+      if (src.path) {
+        const u = resolveImageFrom(src.path);
+        if (u) return u;
+      }
+      return null;
+    }
+    return null;
+  };
+
+  const getItemImage = (it) => {
+    const img =
+      resolveImageFrom(it) ||
+      resolveImageFrom(it?.product) ||
+      resolveImageFrom(it?.variant) ||
+      resolveImageFrom(it?.menu_item) ||
+      resolveImageFrom(it?.menuItem) ||
+      resolveImageFrom(it?.food_item) ||
+      resolveImageFrom(it?.food) ||
+      resolveImageFrom(it?.item) ||
+      null;
+    return img;
+  };
+
+  const cleanText = (v) => {
+    if (v === undefined || v === null) return null;
+    const s = String(v).replace(/\s+/g, ' ').trim();
+    return s.length ? s : null;
+  };
+
+  const resolveNameFrom = (src) => {
+    if (!src) return null;
+    if (typeof src === 'string' || typeof src === 'number') return cleanText(src);
+    if (Array.isArray(src)) {
+      for (let i = 0; i < src.length; i++) {
+        const n = resolveNameFrom(src[i]);
+        if (n) return n;
+      }
+      return null;
+    }
+    if (typeof src === 'object') {
+      const fields = [
+        'name',
+        'product_name',
+        'food_name',
+        'menu_item_name',
+        'title',
+        'product_title',
+        'item_name',
+        'itemTitle',
+        'productTitle',
+        'productName',
+        'item',
+        'foodItemName',
+        'menuItemName',
+        'label',
+        'text',
+        'displayName',
+      ];
+      for (let i = 0; i < fields.length; i++) {
+        const f = fields[i];
+        if (src[f]) {
+          const n = resolveNameFrom(src[f]);
+          if (n) return n;
+        }
+      }
+      return null;
+    }
+    return null;
+  };
+
+  const getItemName = (it) => {
+    const n =
+      resolveNameFrom(it) ||
+      resolveNameFrom(it?.product) ||
+      resolveNameFrom(it?.variant) ||
+      resolveNameFrom(it?.menu_item) ||
+      resolveNameFrom(it?.menuItem) ||
+      resolveNameFrom(it?.food_item) ||
+      resolveNameFrom(it?.food) ||
+      resolveNameFrom(it?.item) ||
+      null;
+    return n || 'Item';
+  };
 
   if (loading) {
     return (
@@ -232,10 +455,10 @@ const OrderDetailsScreen = () => {
             <Ionicons name="call" size={18} color="#6B7280" />
             <Text style={styles.rowText}>{getCustomerPhone() || '—'}</Text>
           </View>
-          <View style={styles.row}>
+          {/* <View style={styles.row}>
             <Ionicons name="location" size={18} color="#6B7280" />
             <Text style={styles.rowText}>{getCustomerAddress() || '—'}</Text>
-          </View>
+          </View> */}
         </View>
 
         <View style={styles.section}>
@@ -246,21 +469,31 @@ const OrderDetailsScreen = () => {
             </View>
           ) : (
             getItems().map((it, idx) => {
-              const name = it?.name ?? it?.product_name ?? it?.product?.name;
-              const qty = it?.qty ?? it?.quantity ?? it?.count ?? 1;
-              const price = it?.price ?? it?.unit_price ?? it?.amount ?? 0;
-              const image = it?.image ?? it?.product_image ?? it?.product?.image;
+              const name = getItemName(it);
+              const qty = it?.qty ?? it?.quantity ?? it?.count ?? it?.pivot?.quantity ?? 1;
+              const price =
+                it?.price ??
+                it?.unit_price ??
+                it?.unitPrice ??
+                it?.amount ??
+                it?.item_price ??
+                it?.line_total ??
+                it?.total ??
+                0;
+              const image = getItemImage(it);
               return (
                 <View key={String(it?.id ?? idx)} style={styles.itemRow}>
                   {image ? (
-                    <Image source={{ uri: image }} style={styles.itemImage} />
+                    <Image source={{ uri: image }} style={styles.itemImage} resizeMode="cover" />
                   ) : (
                     <View style={[styles.itemImage, styles.itemImagePlaceholder]}>
                       <Ionicons name="image-outline" size={18} color="#9CA3AF" />
                     </View>
                   )}
                   <View style={styles.itemInfo}>
-                    <Text style={styles.itemName}>{name || 'Item'}</Text>
+                    <Text style={styles.itemName} numberOfLines={1} ellipsizeMode="tail">
+                      {name || 'Item'}
+                    </Text>
                     <Text style={styles.itemMeta}>Qty: {qty}</Text>
                   </View>
                   <Text style={styles.itemPrice}>₹{Number(price || 0).toFixed(2)}</Text>

@@ -884,6 +884,7 @@ const FoodItemsManagement = () => {
           <TextInput
             style={styles.searchInput}
             placeholder="Search food items..."
+            placeholderTextColor="#A0A0A0" 
             value={searchQuery}
             onChangeText={setSearchQuery}
           />
@@ -1479,7 +1480,7 @@ const styles = StyleSheet.create({
     padding: 5,
   },
   headerTitle: {
-    fontSize: 20,
+    fontSize: 16,
     fontFamily: 'MyFont-Bold',
     color: '#1F2937',
   },
@@ -1518,6 +1519,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     paddingHorizontal: 15,
     paddingVertical: 0,
+    color: '#1F2937',
   },
   searchInput: {
     flex: 1,
@@ -1530,7 +1532,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 10,
     backgroundColor: '#FFFFFF',
-    maxHeight: 50,
+    maxHeight: 55,
   },
   categoryButton: {
     paddingHorizontal: 20,
@@ -1544,7 +1546,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#020A66',
   },
   categoryText: {
-    fontSize: 14,
+    fontSize: 12,
     fontFamily: 'MyFont-Medium',
     color: '#6B7280',
   },
