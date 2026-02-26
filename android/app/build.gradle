@@ -96,8 +96,8 @@ android {
         applicationId 'com.shashankgupta01.phpbellforbusiness'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 3
-        versionName "1.1.2"
+        versionCode 22
+        versionName "1.1.5"
 
         buildConfigField "String", "REACT_NATIVE_RELEASE_LEVEL", "\"${findProperty('reactNativeReleaseLevel') ?: 'stable'}\""
     }
@@ -133,11 +133,7 @@ android {
         release {
             // Caution! In production, you need to generate your own keystore file.
             // see https://reactnative.dev/docs/signed-apk-android.
-          signingConfig (
-            (signingConfigs.release != null && signingConfigs.release.storeFile != null && signingConfigs.release.storeFile.exists())
-              ? signingConfigs.release
-              : signingConfigs.debug
-          )
+          signingConfig signingConfigs.debug
             def enableShrinkResources = findProperty('android.enableShrinkResourcesInReleaseBuilds') ?: 'false'
             shrinkResources enableShrinkResources.toBoolean()
             minifyEnabled enableMinifyInReleaseBuilds

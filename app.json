@@ -2,7 +2,7 @@
   "expo": {
     "name": "PhpBell For Business",
     "slug": "phpbell-for-business",
-    "version": "1.1.2",
+    "version": "1.1.5",
     "orientation": "portrait",
     "icon": "./assets/icons/android/light/mipmap-xxxhdpi/ic_launcher.png",
     "userInterfaceStyle": "light",
@@ -30,7 +30,7 @@
     },
     "android": {
       "package": "com.shashankgupta01.phpbellforbusiness",
-      "versionCode": 3,
+      "versionCode": 22,
       "adaptiveIcon": {
         "foregroundImage": "./assets/icons/android/light/mipmap-xxxhdpi/ic_launcher.png",
         "backgroundColor": "#ffffff",
