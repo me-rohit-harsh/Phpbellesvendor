@@ -160,24 +160,28 @@ const FoodItemsManagement = () => {
         // Get category name from various possible fields with better priority
         let categoryName = '';
         
-        // First try to map using menu_category_id and loaded categories
-        if (item.menu_category_id && availableCategories.length > 0) {
-          const matchingCategory = availableCategories.find(cat => 
-            (cat.id || cat.category_id) === item.menu_category_id
+        // Priority 1: Map using menu_category_id and loaded categoryObjects
+        // We use categoryObjects state if available
+        const categoriesToSearch = categoryObjects || [];
+        
+        if (item.menu_category_id && categoriesToSearch.length > 0) {
+          const matchingCategory = categoriesToSearch.find(cat => 
+            String(cat.id || cat.category_id) === String(item.menu_category_id)
           );
           if (matchingCategory) {
             categoryName = matchingCategory.name || matchingCategory.category_name || matchingCategory.title;
           }
         }
-        // Fallback to other possible fields
-        else if (item.menu_category?.name) {
-          categoryName = item.menu_category.name;
-        } else if (item.menu_category?.category_name) {
-          categoryName = item.menu_category.category_name;
-        } else if (item.category_name) {
-          categoryName = item.category_name;
-        } else if (item.category) {
-          categoryName = item.category;
+        
+        // Priority 2: Check nested menu_category object
+        if (!categoryName && item.menu_category) {
+             categoryName = item.menu_category.name || item.menu_category.category_name || item.menu_category.title;
+        }
+
+        // Priority 3: Direct fields on the item
+        if (!categoryName) {
+             if (item.category_name) categoryName = item.category_name;
+             else if (item.category && typeof item.category === 'string') categoryName = item.category;
         }
         
         // Normalize stock status - use is_available as the primary field
@@ -191,7 +195,7 @@ const FoodItemsManagement = () => {
         return {
           ...item,
           // Ensure we have a consistent category field for filtering
-          category: categoryName,
+          category: categoryName || 'Uncategorized', // Fallback if still empty
           // Ensure we have consistent stock fields
           is_available: stockStatus,
           inStock: stockStatus, // Keep for backward compatibility
@@ -478,7 +482,7 @@ const FoodItemsManagement = () => {
         discount_price: newItem.discount_price ? parseFloat(newItem.discount_price).toFixed(2) : parseFloat(newItem.price).toFixed(2), // Use discount price or fallback to price
         is_available: newItem.is_available,
         type: newItem.type || 'veg', // Use form value or default to veg
-        tags: Array.isArray(newItem.tags) ? newItem.tags : (typeof newItem.tags === 'string' ? newItem.tags.split(',').map(tag => tag.trim()).filter(tag => tag) : []), // Handle both array and string formats
+        tags: Array.isArray(newItem.tags) ? newItem.tags : (typeof newItem.tags === 'string' ? newItem.tags.split(',').map(tag => tag.trim()).filter(tag => tag) : []), // API expects an array of strings
         preparation_time: newItem.preparation_time || '15', // Use form value or default
         calories: newItem.calories || '0', // Use form value or default to 0
         sort_order: newItem.sort_order || '1', // Use form value or default sort order
@@ -510,7 +514,7 @@ const FoodItemsManagement = () => {
       await loadMenuItems();
       
       // Only show success if everything completed without errors
-      setNewItem({ name: '', category: getDefaultCategory(), price: '', discount_price: '', description: '', image: null, quantity: '', type: 'veg', preparation_time: '15', calories: '', tags: [], sort_order: '1', is_available: true, totalOrders: 0, weeklyOrders: 0 });
+      setNewItem({ name: '', category: getDefaultCategory(), price: '', discount_price: '', description: '', image: null, quantity: '', type: 'veg', preparation_time: '15', calories: '', tags: [], sort_order: '1', is_available: true });
       setShowAddModal(false);
       
       console.info('🎉 Food item creation process completed successfully');
@@ -555,15 +559,52 @@ const FoodItemsManagement = () => {
     }
   };
 
+  const handleCloseEditModal = () => {
+    setNewItem({ name: '', category: getDefaultCategory(), price: '', discount_price: '', description: '', image: null, quantity: '', type: 'veg', preparation_time: '15', calories: '', tags: [], sort_order: '1', is_available: true });
+    setEditingItem(null);
+    setShowEditModal(false);
+  };
+
+  const handleOpenAddModal = () => {
+    setNewItem({ name: '', category: getDefaultCategory(), price: '', discount_price: '', description: '', image: null, quantity: '', type: 'veg', preparation_time: '15', calories: '', tags: [], sort_order: '1', is_available: true });
+    setShowAddModal(true);
+  };
+
   const handleEditItem = (item) => {
     setEditingItem(item);
+    
+    // Determine the category name correctly
+    let categoryName = item.category;
+    
+    // If category is an object or not found, try to find it in categoryObjects
+    if (!categoryName || typeof categoryName !== 'string') {
+      // Try to find by category_id or menu_category_id
+      const catId = item.category_id || item.menu_category_id;
+      if (catId) {
+        const foundCat = categoryObjects.find(c => c.id == catId);
+        if (foundCat) {
+          categoryName = foundCat.name || foundCat.category_name;
+        }
+      }
+    }
+    
+    // Determine quantity/stock correctly
+    // The API might return 'stock', 'quantity', or 'in_stock' (boolean)
+    // We prioritize 'stock' if it's a number, otherwise fallback to 'quantity'
+    let quantityValue = '';
+    if (item.stock !== undefined && item.stock !== null) {
+      quantityValue = item.stock.toString();
+    } else if (item.quantity !== undefined && item.quantity !== null) {
+      quantityValue = item.quantity.toString();
+    }
+    
     setNewItem({
       name: item.name,
-      category: item.category,
-      price: item.price.toString(),
-      description: item.description,
+      category: categoryName || getDefaultCategory(),
+      price: item.price ? item.price.toString() : '',
+      description: item.description || '',
       image: item.image,
-      quantity: item.quantity ? item.quantity.toString() : '',
+      quantity: quantityValue,
       type: item.type || 'veg',
       preparation_time: item.preparation_time ? item.preparation_time.toString() : '',
       calories: item.calories ? item.calories.toString() : '',
@@ -618,25 +659,38 @@ const FoodItemsManagement = () => {
 
     try {
       // Find the category object to get the category_id
-      const selectedCategoryObj = categoryObjects.find(cat => 
-        (cat.name || cat.category_name) === newItem.category
-      );
+      // Try multiple ways to match the category
+      const selectedCategoryObj = categoryObjects.find(cat => {
+        // Match by name
+        if (cat.name === newItem.category) return true;
+        if (cat.category_name === newItem.category) return true;
+        // Match by ID if newItem.category happens to be an ID
+        if (cat.id == newItem.category) return true;
+        return false;
+      });
 
       if (!selectedCategoryObj || !selectedCategoryObj.id) {
-        showErrorAlert('Error', `Category "${newItem.category}" not found. Please select a valid category.`);
-        return;
+        // Fallback: Check if newItem.category is already a valid ID
+        if (newItem.category && (typeof newItem.category === 'number' || (typeof newItem.category === 'string' && /^\d+$/.test(newItem.category)))) {
+          // It looks like an ID, so let's use it directly
+          console.warn('⚠️ Could not find category object, but input looks like an ID. Using it directly:', newItem.category);
+          selectedCategoryObj = { id: newItem.category };
+        } else {
+          showErrorAlert('Error', `Category "${newItem.category}" not found. Please select a valid category.`);
+          return;
+        }
       }
 
       // Pass the image file object directly (not URL)
       const itemData = {
-        menu_category_id: selectedCategoryObj ? selectedCategoryObj.id.toString() : null, // API expects string ID
+        menu_category_id: selectedCategoryObj.id.toString(),
         name: newItem.name,
         description: newItem.description || '',
         price: parseFloat(newItem.price).toFixed(2), // API expects decimal format
         discount_price: newItem.discount_price ? parseFloat(newItem.discount_price).toFixed(2) : parseFloat(newItem.price).toFixed(2), // Use discount price or fallback to price
         is_available: newItem.is_available,
         type: newItem.type || 'veg', // Use form value or default to veg
-        tags: Array.isArray(newItem.tags) ? newItem.tags : (typeof newItem.tags === 'string' ? newItem.tags.split(',').map(tag => tag.trim()).filter(tag => tag) : []), // Handle both array and string formats
+        tags: Array.isArray(newItem.tags) ? newItem.tags : (typeof newItem.tags === 'string' ? newItem.tags.split(',').map(tag => tag.trim()).filter(tag => tag) : []), // API expects an array of strings
         preparation_time: newItem.preparation_time || '15', // Use form value or default
         calories: newItem.calories || '0', // Use form value or default to 0
         sort_order: newItem.sort_order || '1', // Use form value or default sort order
@@ -871,7 +925,7 @@ const FoodItemsManagement = () => {
           {/* Connectivity test button removed */}
           <TouchableOpacity 
             style={styles.addButton}
-            onPress={() => setShowAddModal(true)}
+            onPress={handleOpenAddModal}
           >
             <Ionicons name="add" size={24} color="#FFFFFF" />
           </TouchableOpacity>
@@ -943,7 +997,7 @@ const FoodItemsManagement = () => {
       >
         <SafeAreaView style={styles.modalContainer}>
           <View style={styles.modalHeader}>
-            <TouchableOpacity onPress={() => setShowAddModal(false)}>
+            <TouchableOpacity onPress={handleCloseEditModal}>
               <Text style={styles.cancelButton}>Cancel</Text>
             </TouchableOpacity>
             <Text style={styles.modalTitle}>Add Food Item</Text>
@@ -1090,10 +1144,17 @@ const FoodItemsManagement = () => {
               <TextInput
                 style={styles.input}
                 placeholder="e.g. spicy, best-seller"
-                value={Array.isArray(newItem.tags) ? newItem.tags.join(', ') : ''}
+                value={Array.isArray(newItem.tags) ? newItem.tags.join(', ') : (typeof newItem.tags === 'string' ? newItem.tags : '')}
                 onChangeText={(text) => {
-                  const tagsArray = text.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0);
-                  setNewItem({ ...newItem, tags: tagsArray });
+                  // Keep as string while typing to allow commas
+                  setNewItem({ ...newItem, tags: text });
+                }}
+                onEndEditing={() => {
+                   // Convert to array when focus is lost (optional, but good for data consistency)
+                   if (typeof newItem.tags === 'string') {
+                      const tagsArray = newItem.tags.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0);
+                      setNewItem({ ...newItem, tags: tagsArray });
+                   }
                 }}
               />
             </View>
@@ -1211,7 +1272,7 @@ const FoodItemsManagement = () => {
       >
         <SafeAreaView style={styles.modalContainer}>
           <View style={styles.modalHeader}>
-            <TouchableOpacity onPress={() => setShowEditModal(false)}>
+            <TouchableOpacity onPress={handleCloseEditModal}>
               <Text style={styles.cancelButton}>Cancel</Text>
             </TouchableOpacity>
             <Text style={styles.modalTitle}>Edit Food Item</Text>
@@ -1388,10 +1449,17 @@ const FoodItemsManagement = () => {
               <TextInput
                 style={styles.input}
                 placeholder="e.g. spicy, best-seller"
-                value={Array.isArray(newItem.tags) ? newItem.tags.join(', ') : ''}
+                value={Array.isArray(newItem.tags) ? newItem.tags.join(', ') : (typeof newItem.tags === 'string' ? newItem.tags : '')}
                 onChangeText={(text) => {
-                  const tagsArray = text.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0);
-                  setNewItem({ ...newItem, tags: tagsArray });
+                  // Keep as string while typing to allow commas
+                  setNewItem({ ...newItem, tags: text });
+                }}
+                onEndEditing={() => {
+                   // Convert to array when focus is lost (optional, but good for data consistency)
+                   if (typeof newItem.tags === 'string') {
+                      const tagsArray = newItem.tags.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0);
+                      setNewItem({ ...newItem, tags: tagsArray });
+                   }
                 }}
               />
             </View>
@@ -1454,6 +1522,7 @@ const FoodItemsManagement = () => {
         message={alertConfig.message}
         type={alertConfig.type}
         buttons={alertConfig.buttons}
+        onClose={() => setShowAlert(false)}
       />
     </SafeAreaView>
   );

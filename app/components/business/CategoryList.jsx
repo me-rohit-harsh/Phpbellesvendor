@@ -30,8 +30,7 @@ const CategoryList = ({
     // Apply search filter
     if (searchQuery.trim()) {
       filtered = filtered.filter(category =>
-        category.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        category.description?.toLowerCase().includes(searchQuery.toLowerCase())
+        category.name?.toLowerCase().includes(searchQuery.toLowerCase())
       );
     }
 

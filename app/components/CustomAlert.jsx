@@ -20,11 +20,15 @@ const CustomAlert = ({
   type = 'info', // 'success', 'error', 'warning', 'info'
   buttons = [],
   onDismiss,
+  onClose,
   autoClose = false,
   autoCloseDelay = 3000,
 }) => {
   const scaleAnim = useRef(new Animated.Value(0)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
+
+  // Use onDismiss or onClose
+  const handleCloseAction = onDismiss || onClose;
 
   useEffect(() => {
     let timer;
@@ -84,7 +88,7 @@ const CustomAlert = ({
         useNativeDriver: true,
       }),
     ]).start(() => {
-      if (onDismiss) onDismiss();
+      if (handleCloseAction) handleCloseAction();
     });
   };
 

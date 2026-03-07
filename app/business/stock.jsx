@@ -331,6 +331,7 @@ const StockManagement = () => {
         message={alertConfig.message}
         type={alertConfig.type}
         buttons={alertConfig.buttons}
+        onClose={() => setShowAlert(false)}
       />
     </SafeAreaView>
   );

@@ -15,21 +15,18 @@ import { updateMenuCategory } from '../../../lib/api/vendor';
 
 const EditCategoryModal = ({ visible, onClose, onCategoryUpdated, category }) => {
   const [categoryName, setCategoryName] = useState('');
-  const [categoryDescription, setCategoryDescription] = useState('');
   const [isActive, setIsActive] = useState(true);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (category) {
       setCategoryName(category.name || '');
-      setCategoryDescription(category.description || '');
       setIsActive(category.is_active !== undefined ? category.is_active : true);
     }
   }, [category]);
 
   const resetForm = () => {
     setCategoryName('');
-    setCategoryDescription('');
     setIsActive(true);
   };
 
@@ -54,7 +51,6 @@ const EditCategoryModal = ({ visible, onClose, onCategoryUpdated, category }) =>
       
       const categoryData = {
         name: categoryName.trim(),
-        description: categoryDescription.trim(),
         is_active: isActive,
       };
 
@@ -126,22 +122,6 @@ const EditCategoryModal = ({ visible, onClose, onCategoryUpdated, category }) =>
               placeholder="Enter category name"
               placeholderTextColor="#9CA3AF"
               maxLength={50}
-              editable={!loading}
-            />
-          </View>
-
-          {/* Category Description */}
-          <View style={styles.formGroup}>
-            <Text style={styles.label}>Description</Text>
-            <TextInput
-              style={[styles.input, styles.textArea]}
-              value={categoryDescription}
-              onChangeText={setCategoryDescription}
-              placeholder="Enter category description (optional)"
-              placeholderTextColor="#9CA3AF"
-              multiline
-              numberOfLines={3}
-              maxLength={200}
               editable={!loading}
             />
           </View>

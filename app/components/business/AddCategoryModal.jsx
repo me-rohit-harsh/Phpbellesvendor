@@ -15,13 +15,11 @@ import { createMenuCategory } from '../../../lib/api/vendor';
 
 const AddCategoryModal = ({ visible, onClose, onCategoryAdded }) => {
   const [categoryName, setCategoryName] = useState('');
-  const [categoryDescription, setCategoryDescription] = useState('');
   const [isActive, setIsActive] = useState(true);
   const [loading, setLoading] = useState(false);
 
   const resetForm = () => {
     setCategoryName('');
-    setCategoryDescription('');
     setIsActive(true);
   };
 
@@ -41,7 +39,6 @@ const AddCategoryModal = ({ visible, onClose, onCategoryAdded }) => {
       
       const categoryData = {
         name: categoryName.trim(),
-        description: categoryDescription.trim(),
         is_active: isActive,
       };
 
@@ -113,22 +110,6 @@ const AddCategoryModal = ({ visible, onClose, onCategoryAdded }) => {
               placeholder="Enter category name"
               placeholderTextColor="#9CA3AF"
               maxLength={50}
-              editable={!loading}
-            />
-          </View>
-
-          {/* Category Description */}
-          <View style={styles.formGroup}>
-            <Text style={styles.label}>Description</Text>
-            <TextInput
-              style={[styles.input, styles.textArea]}
-              value={categoryDescription}
-              onChangeText={setCategoryDescription}
-              placeholder="Enter category description (optional)"
-              placeholderTextColor="#9CA3AF"
-              multiline
-              numberOfLines={3}
-              maxLength={200}
               editable={!loading}
             />
           </View>

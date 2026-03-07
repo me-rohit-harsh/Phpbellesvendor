@@ -52,9 +52,7 @@ const CategoryCard = ({ category, onPress, onEdit, onDelete }) => {
           <Text style={styles.categoryName} numberOfLines={1}>
             {category.name || 'Unnamed Category'}
           </Text>
-          <Text style={styles.categoryDescription} numberOfLines={2}>
-            {category.description || 'No description available'}
-          </Text>
+         
           
           {/* Stats */}
           <View style={styles.statsContainer}>

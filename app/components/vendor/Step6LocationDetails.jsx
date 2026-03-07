@@ -199,13 +199,13 @@ const Step6LocationDetails = ({ onNext, onBack, formData, setFormData }) => {
           type: 'success',
           buttons: [
             { text: 'OK', onPress: () => setShowAlert(false) },
-            { 
-              text: 'View on Map', 
-              onPress: () => {
-                setShowAlert(false);
-                setShowMapModal(true);
-              }
-            }
+            // { 
+            //   text: 'View on Map', 
+            //   onPress: () => {
+            //     setShowAlert(false);
+            //     setShowMapModal(true);
+            //   }
+            // }
           ]
         });
         setShowAlert(true);
@@ -420,7 +420,7 @@ const Step6LocationDetails = ({ onNext, onBack, formData, setFormData }) => {
           <Ionicons name="chevron-forward" size={20} color="#666" />
         </TouchableOpacity>
 
-        {selectedLocation && (
+        {/* {selectedLocation && (
           <View style={styles.selectedLocationContainer}>
             <View style={styles.locationHeader}>
               <Ionicons name="checkmark-circle" size={20} color="#4CAF50" />
@@ -446,7 +446,7 @@ const Step6LocationDetails = ({ onNext, onBack, formData, setFormData }) => {
               </TouchableOpacity>
             </View>
           </View>
-        )}
+        )} */}
       </View>
 
       <View style={styles.buttonContainer}>
