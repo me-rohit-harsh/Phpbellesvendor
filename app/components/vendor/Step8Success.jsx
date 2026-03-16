@@ -1,9 +1,10 @@
-import React, { useEffect, useRef } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Animated, Dimensions } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, Animated, Dimensions, Alert, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import PersistentStorage from '../../../lib/storage/persistentStorage';
+import { LinearGradient } from 'expo-linear-gradient';
 
 const { width, height } = Dimensions.get('window');
 
@@ -12,6 +13,9 @@ const Step8Success = () => {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0)).current;
   const iconBounceAnim = useRef(new Animated.Value(0)).current;
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+  const [showPaymentNotice, setShowPaymentNotice] = useState(false);
+
   const confettiAnims = useRef(
     Array.from({ length: 40 }, () => ({
       translateY: new Animated.Value(-150),
@@ -44,6 +48,22 @@ const Step8Success = () => {
       ]),
     ]).start();
 
+    // Icon pulse animation
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, {
+          toValue: 1.1,
+          duration: 1000,
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulseAnim, {
+          toValue: 1,
+          duration: 1000,
+          useNativeDriver: true,
+        }),
+      ])
+    ).start();
+
     // Animate confetti with faster, more visible effects
     const confettiAnimations = confettiAnims.map((anim, index) => {
       return Animated.parallel([
@@ -66,6 +86,11 @@ const Step8Success = () => {
     });
 
     Animated.stagger(20, confettiAnimations).start(); // Much faster stagger
+
+    // Show payment notice with delay
+    setTimeout(() => {
+      setShowPaymentNotice(true);
+    }, 800);
   }, []);
 
   const handleContinue = async () => {
@@ -118,6 +143,11 @@ const Step8Success = () => {
 
   return (
     <View style={styles.container}>
+      <LinearGradient
+        colors={['#FFFFFF', '#F0F4FF', '#FFFFFF']}
+        style={StyleSheet.absoluteFill}
+      />
+      
       {/* Confetti Animation */}
       {confettiAnims.map((anim, index) => (
         <ConfettiPiece
@@ -129,76 +159,114 @@ const Step8Success = () => {
         />
       ))}
 
-      <Animated.View
-        style={[
-          styles.content,
-          {
-            opacity: fadeAnim,
-            transform: [{ scale: scaleAnim }],
-          },
-        ]}
+      <ScrollView 
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
       >
-        <Animated.View 
+        <Animated.View
           style={[
-            styles.iconContainer,
+            styles.content,
             {
-              transform: [{
-                scale: iconBounceAnim.interpolate({
-                  inputRange: [0, 0.5, 1],
-                  outputRange: [0.3, 1.2, 1],
-                }),
-              }],
+              opacity: fadeAnim,
+              transform: [{ scale: scaleAnim }],
             },
           ]}
         >
-          <Ionicons name="checkmark-circle" size={80} color="#00C851" />
+          <Animated.View 
+            style={[
+              styles.iconContainer,
+              {
+                transform: [
+                  {
+                    scale: iconBounceAnim.interpolate({
+                      inputRange: [0, 0.5, 1],
+                      outputRange: [0.3, 1.2, 1],
+                    }),
+                  },
+                  { scale: pulseAnim }
+                ],
+              },
+            ]}
+          >
+            <LinearGradient
+              colors={['#E8FFF3', '#C6F6D5']}
+              style={styles.iconBackground}
+            >
+              <Ionicons name="checkmark-circle" size={100} color="#00C851" />
+            </LinearGradient>
+          </Animated.View>
+
+          <Text style={styles.title}>Registration Complete!</Text>
+          <Text style={styles.subtitle}>
+            Welcome to the PHPBell Family
+          </Text>
+
+          {showPaymentNotice && (
+            <Animated.View 
+              entering={Animated.FadeInDown}
+              style={styles.paymentCard}
+            >
+              <LinearGradient
+                colors={['#FFF5F5', '#FFE3E3']}
+                style={styles.paymentGradient}
+              >
+                <View style={styles.paymentHeader}>
+                  <View style={styles.paymentIconWrapper}>
+                    <Ionicons name="mail-unread" size={24} color="#E53E3E" />
+                  </View>
+                  <Text style={styles.paymentTitle}>Action Required: Email Verification</Text>
+                </View>
+                <Text style={styles.paymentText}>
+                  To activate your account, please complete the <Text style={styles.boldText}>verification payment</Text> sent to your email.
+                </Text>
+                <View style={styles.paymentBadge}>
+                  <Ionicons name="information-circle" size={16} color="#C53030" />
+                  <Text style={styles.paymentBadgeText}>Check your inbox & spam folder</Text>
+                </View>
+              </LinearGradient>
+            </Animated.View>
+          )}
+
+          <View style={styles.infoGrid}>
+            <View style={styles.infoBox}>
+              <View style={[styles.infoIconBox, { backgroundColor: '#EBF8FF' }]}>
+                <Ionicons name="time" size={24} color="#3182CE" />
+              </View>
+              <Text style={styles.infoLabel}>Review Time</Text>
+              <Text style={styles.infoValue}>24-48 Hours</Text>
+            </View>
+
+            <View style={styles.infoBox}>
+              <View style={[styles.infoIconBox, { backgroundColor: '#FAF5FF' }]}>
+                <Ionicons name="notifications" size={24} color="#805AD5" />
+              </View>
+              <Text style={styles.infoLabel}>Updates</Text>
+              <Text style={styles.infoValue}>Email & SMS</Text>
+            </View>
+          </View>
+
+          <TouchableOpacity 
+            style={styles.continueButton} 
+            onPress={handleContinue}
+            activeOpacity={0.8}
+          >
+            <LinearGradient
+              colors={['#020A66', '#040E8C']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.continueGradient}
+            >
+              <Text style={styles.continueButtonText}>Go to Dashboard</Text>
+              <Ionicons name="chevron-forward" size={20} color="#fff" />
+            </LinearGradient>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.supportButton} activeOpacity={0.6}>
+            <Ionicons name="chatbubble-ellipses-outline" size={20} color="#020A66" />
+            <Text style={styles.supportButtonText}>Need help? Contact Support</Text>
+          </TouchableOpacity>
         </Animated.View>
-
-        <Text style={styles.title}>Congratulations!</Text>
-        <Text style={styles.subtitle}>
-          You are now registered with PHPBell
-        </Text>
-        <Text style={styles.description}>
-          Your application has been submitted successfully. Our team will review your 
-          information and get back to you within 24-48 hours.
-        </Text>
-
-        <View style={styles.infoContainer}>
-          <View style={styles.infoItem}>
-            <Ionicons name="time-outline" size={24} color="#4A5FFF" />
-            <View style={styles.infoText}>
-              <Text style={styles.infoTitle}>Review Time</Text>
-              <Text style={styles.infoSubtitle}>24-48 hours</Text>
-            </View>
-          </View>
-
-          <View style={styles.infoItem}>
-            <Ionicons name="mail-outline" size={24} color="#4A5FFF" />
-            <View style={styles.infoText}>
-              <Text style={styles.infoTitle}>Notification</Text>
-              <Text style={styles.infoSubtitle}>Via email & SMS</Text>
-            </View>
-          </View>
-
-          <View style={styles.infoItem}>
-            <Ionicons name="call-outline" size={24} color="#4A5FFF" />
-            <View style={styles.infoText}>
-              <Text style={styles.infoTitle}>Support</Text>
-              <Text style={styles.infoSubtitle}>24/7 available</Text>
-            </View>
-          </View>
-        </View>
-
-        <TouchableOpacity style={styles.continueButton} onPress={handleContinue}>
-          <Text style={styles.continueButtonText}>Continue to Dashboard</Text>
-          <Ionicons name="arrow-forward" size={20} color="#fff" />
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.supportButton}>
-          <Ionicons name="headset-outline" size={20} color="#020A66" />
-          <Text style={styles.supportButtonText}>Contact Support</Text>
-        </TouchableOpacity>
-      </Animated.View>
+      </ScrollView>
     </View>
   );
 };
@@ -207,89 +275,174 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#fff',
-    position: 'relative',
+  },
+  scrollContent: {
+    flexGrow: 1,
   },
   confetti: {
     position: 'absolute',
-    zIndex: 9999,
-    elevation: 9999,
-    // width and height will be set dynamically via props
+    zIndex: 99,
   },
   confettiCircle: {
-    borderRadius: 50, // Make it fully circular regardless of size
+    borderRadius: 50,
   },
   confettiSquare: {
     borderRadius: 2,
   },
   content: {
     flex: 1,
-    paddingTop: 60,
+    paddingTop: 80,
+    paddingBottom: 40,
+    paddingHorizontal: 24,
     alignItems: 'center',
-    justifyContent: 'center',
   },
   iconContainer: {
-    marginBottom: 30,
+    marginBottom: 20,
+    zIndex: 10,
+  },
+  iconBackground: {
+    width: 160,
+    height: 160,
+    borderRadius: 80,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#00C851',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.2,
+    shadowRadius: 15,
+    elevation: 8,
   },
   title: {
     fontSize: 32,
-    fontFamily: "MyFont-SemiBold",
-    color: '#333',
+    fontFamily: "MyFont-Bold",
+    color: '#1A202C',
     textAlign: 'center',
-    marginBottom: 10,
+    marginBottom: 8,
   },
   subtitle: {
     fontSize: 18,
-    color: '#020A66',
+    color: '#4A5568',
     textAlign: 'center',
-    marginBottom: 20,
-    fontFamily: "MyFont-SemiBold",
+    marginBottom: 30,
+    fontFamily: "MyFont-Medium",
   },
-  description: {
-    fontSize: 14,
-    color: '#666',
-    textAlign: 'center',
-    lineHeight: 24,
-    marginBottom: 40,
-    fontFamily: "MyFont-SemiBold",
-  },
-  infoContainer: {
+  paymentCard: {
     width: '100%',
-    marginBottom: 40,
+    borderRadius: 20,
+    marginBottom: 30,
+    overflow: 'hidden',
+    shadowColor: '#E53E3E',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
+    elevation: 5,
   },
-  infoItem: {
+  paymentGradient: {
+    padding: 20,
+  },
+  paymentHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 15,
-    paddingHorizontal: 20,
-    backgroundColor: '#F8F9FF',
-    borderRadius: 12,
     marginBottom: 12,
   },
-  infoText: {
-    marginLeft: 15,
+  paymentIconWrapper: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#FFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  paymentTitle: {
+    fontSize: 16,
+    fontFamily: 'MyFont-Bold',
+    color: '#C53030',
     flex: 1,
   },
-  infoTitle: {
-    fontSize: 16,
-    fontFamily: "MyFont-Bold",
-    color: '#333',
-    marginBottom: 2,
-  },
-  infoSubtitle: {
+  paymentText: {
     fontSize: 14,
-    color: '#666',
-    fontFamily: "MyFont-SemiBold",
+    color: '#4A5568',
+    lineHeight: 22,
+    marginBottom: 15,
+    fontFamily: 'MyFont-Regular',
+  },
+  boldText: {
+    fontFamily: 'MyFont-Bold',
+    color: '#1A202C',
+  },
+  paymentBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.6)',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+    alignSelf: 'flex-start',
+  },
+  paymentBadgeText: {
+    fontSize: 12,
+    fontFamily: 'MyFont-Medium',
+    color: '#C53030',
+    marginLeft: 6,
+  },
+  infoGrid: {
+    flexDirection: 'row',
+    width: '100%',
+    gap: 15,
+    marginBottom: 40,
+  },
+  infoBox: {
+    flex: 1,
+    backgroundColor: '#FFF',
+    borderRadius: 20,
+    padding: 15,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#EDF2F7',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 5,
+    elevation: 2,
+  },
+  infoIconBox: {
+    width: 48,
+    height: 48,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  infoLabel: {
+    fontSize: 12,
+    color: '#718096',
+    fontFamily: 'MyFont-Medium',
+    marginBottom: 4,
+  },
+  infoValue: {
+    fontSize: 14,
+    color: '#2D3748',
+    fontFamily: 'MyFont-Bold',
   },
   continueButton: {
+    width: '100%',
+    height: 60,
+    borderRadius: 16,
+    overflow: 'hidden',
+    marginBottom: 20,
+    shadowColor: '#020A66',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  continueGradient: {
+    flex: 1,
     flexDirection: 'row',
-    backgroundColor: '#020A66',
-    paddingVertical: 16,
-    paddingHorizontal: 30,
-    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    width: '100%',
-    marginBottom: 15,
+    paddingHorizontal: 20,
   },
   continueButtonText: {
     color: '#fff',
@@ -302,12 +455,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 12,
-    marginBottom: 80,
+    paddingHorizontal: 20,
   },
   supportButtonText: {
-    color: '#020A66',
-    fontSize: 16,
-    fontWeight: '500',
+    color: '#4A5568',
+    fontSize: 15,
+    fontFamily: "MyFont-Medium",
     marginLeft: 8,
   },
 });
