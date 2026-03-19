@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "975354002302",
+    "project_id": "vendor-a54ca",
+    "storage_bucket": "vendor-a54ca.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:975354002302:android:f429cf3c554f725775112f",
+        "android_client_info": {
+          "package_name": "com.shashankgupta01.phpbellforbusiness"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBzZ1-JVavqmN3OWwgiuoTsKsZvhf3ykO0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
