@@ -240,7 +240,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#F8F9FA',
   },
   headerGradient: {
-    paddingTop: 50,
+    paddingTop: 16,
     paddingBottom: 20,
     borderBottomLeftRadius: 30,
     borderBottomRightRadius: 30,
@@ -345,6 +345,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontFamily: 'MyFont-Bold',
     color: '#C53030',
+    lineHeight: 1.3 * 18,
   },
   paymentSubtitle: {
     fontSize: 14,
@@ -355,7 +356,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontFamily: 'MyFont-Medium',
     color: '#4A5568',
-    lineHeight: 22,
+    lineHeight: 1.3 * 15,
     marginBottom: 20,
   },
   alertBox: {
@@ -372,6 +373,7 @@ const styles = StyleSheet.create({
     fontFamily: 'MyFont-Bold',
     color: '#C53030',
     flex: 1,
+    lineHeight: 1.3 * 13,
   },
   checkEmailButton: {
     flexDirection: 'row',
@@ -452,6 +454,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontFamily: 'MyFont-Regular',
     color: '#718096',
+      lineHeight: 1.3 * 13,
   },
   progressLine: {
     position: 'absolute',

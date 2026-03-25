@@ -14,6 +14,7 @@ import * as Location from 'expo-location';
 import { WebView } from 'react-native-webview';
 import CustomAlert from '../CustomAlert';
 import PersistentStorage from '../../../lib/storage/persistentStorage';
+import { useSafePress } from '../../../lib/utils/clickSafety';
 
 const Step6LocationDetails = ({ onNext, onBack, formData, setFormData }) => {
   const [address, setAddress] = useState(formData.address || '');
@@ -339,6 +340,11 @@ const Step6LocationDetails = ({ onNext, onBack, formData, setFormData }) => {
     onNext();
   };
 
+  // Wrapped versions with click safety (prevents rapid clicks)
+  const safeGetCurrentLocation = useSafePress(getCurrentLocation, 500);
+  const safeSelectLocationManually = useSafePress(selectLocationManually, 300);
+  const safeHandleNext = useSafePress(handleNext, 500);
+
   return (
     <>
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
@@ -401,7 +407,7 @@ const Step6LocationDetails = ({ onNext, onBack, formData, setFormData }) => {
         
         <TouchableOpacity 
           style={styles.currentLocationButton} 
-          onPress={getCurrentLocation}
+          onPress={safeGetCurrentLocation}
           disabled={isGettingLocation}
         >
           <Ionicons name="locate" size={20} color="#020A66" />
@@ -410,7 +416,7 @@ const Step6LocationDetails = ({ onNext, onBack, formData, setFormData }) => {
           </Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.mapButton} onPress={selectLocationManually}>
+        <TouchableOpacity style={styles.mapButton} onPress={safeSelectLocationManually}>
           <View style={styles.mapContent}>
             <Ionicons name="location-outline" size={24} color="#020A66" />
             <Text style={styles.mapText}>
@@ -453,7 +459,7 @@ const Step6LocationDetails = ({ onNext, onBack, formData, setFormData }) => {
         <TouchableOpacity style={styles.backButton} onPress={onBack}>
           <Text style={styles.backButtonText}>Back</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.nextButton} onPress={handleNext}>
+        <TouchableOpacity style={styles.nextButton} onPress={safeHandleNext}>
           <Text style={styles.nextButtonText}>Next</Text>
         </TouchableOpacity>
       </View>

@@ -5,6 +5,7 @@ import * as DocumentPicker from 'expo-document-picker';
 import CustomAlert from '../CustomAlert';
 import { safeDocumentPicker } from '../../../lib/utils/permissions';
 import PersistentStorage from '../../../lib/storage/persistentStorage';
+import { useSafePress } from '../../../lib/utils/clickSafety';
 
 const Step5GSTFSSAIDetails = ({ onNext, onBack, formData, setFormData }) => {
   const [gstNumber, setGstNumber] = useState(formData.gstNumber || '');
@@ -179,6 +180,11 @@ const Step5GSTFSSAIDetails = ({ onNext, onBack, formData, setFormData }) => {
     onNext();
   };
 
+  // Wrapped versions with click safety (prevents rapid clicks)
+  const safePickGSTDocument = useSafePress(pickGSTDocument, 300);
+  const safePickFSSAIDocument = useSafePress(pickFSSAIDocument, 300);
+  const safeHandleNext = useSafePress(handleNext, 500);
+
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       <View style={styles.content}>
@@ -195,7 +201,7 @@ const Step5GSTFSSAIDetails = ({ onNext, onBack, formData, setFormData }) => {
         <Text style={styles.helperText}>Format: 22AAAAA0000A1Z5</Text>
 
         <Text style={styles.label}>GST Certificate</Text>
-        <TouchableOpacity style={styles.uploadButton} onPress={pickGSTDocument}>
+        <TouchableOpacity style={styles.uploadButton} onPress={safePickGSTDocument}>
           <View style={styles.uploadContent}>
             {gstDocument ? (
               <View style={styles.uploadedStatus}>
@@ -226,7 +232,7 @@ const Step5GSTFSSAIDetails = ({ onNext, onBack, formData, setFormData }) => {
         <Text style={styles.helperText}>14-digit FSSAI License Number</Text>
 
         <Text style={styles.label}>Shop License/Municipal Permit</Text>
-        <TouchableOpacity style={styles.uploadButton} onPress={pickFSSAIDocument}>
+        <TouchableOpacity style={styles.uploadButton} onPress={safePickFSSAIDocument}>
           <View style={styles.uploadContent}>
             {fssaiDocument ? (
               <View style={styles.uploadedStatus}>
@@ -249,7 +255,7 @@ const Step5GSTFSSAIDetails = ({ onNext, onBack, formData, setFormData }) => {
         <TouchableOpacity style={styles.backButton} onPress={onBack}>
           <Text style={styles.backButtonText}>Back</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.nextButton} onPress={handleNext}>
+        <TouchableOpacity style={styles.nextButton} onPress={safeHandleNext}>
           <Text style={styles.nextButtonText}>Next</Text>
         </TouchableOpacity>
       </View>

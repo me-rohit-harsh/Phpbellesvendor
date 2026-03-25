@@ -6,7 +6,7 @@ import {
   TouchableOpacity,
   Alert,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import CategoryList from './CategoryList';
@@ -17,6 +17,7 @@ import { getMenuCategories, deleteMenuCategory, getMenuItems } from '../../../li
 
 const CategoryManagement = () => {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [categories, setCategories] = useState([]);
   const [menuItems, setMenuItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -210,9 +211,9 @@ const CategoryManagement = () => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + 6 }]}>
         <View style={styles.headerContent}>
           <TouchableOpacity style={styles.backButton} onPress={handleGoBack}>
             <Ionicons name="arrow-back" size={24} color="#1F2937" />
@@ -271,7 +272,7 @@ const CategoryManagement = () => {
         onCategoryUpdated={handleCategoryUpdated}
         category={selectedCategory}
       />
-    </SafeAreaView>
+    </View>
   );
 };
 
@@ -286,7 +287,6 @@ const styles = StyleSheet.create({
     paddingVertical: 15,
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',
-    paddingTop: 50,
   },
   headerContent: {
     flexDirection: 'row',

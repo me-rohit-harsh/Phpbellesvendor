@@ -16,6 +16,7 @@ import { showImagePickerOptions, safeDocumentPicker } from '../../../lib/utils/p
 import { Ionicons } from '@expo/vector-icons';
 import useAutoSave from '../../../hooks/useAutoSave';
 import PersistentStorage from '../../../lib/storage/persistentStorage';
+import { useSafePress } from '../../../lib/utils/clickSafety';
 
 const Step3ProfileSetup = ({ formData, setFormData, onNext, onBack }) => {
   const [fullName, setFullName] = useState(formData.fullName || '');
@@ -249,6 +250,11 @@ const Step3ProfileSetup = ({ formData, setFormData, onNext, onBack }) => {
 
   const isFormValid = fullName.trim().length > 0 && idProof;
 
+  // Wrapped versions with click safety (prevents rapid clicks)
+  const safeHandleIdProofUpload = useSafePress(handleIdProofUpload, 300);
+  const safeHandleProfilePhotoUpload = useSafePress(handleProfilePhotoUpload, 300);
+  const safeHandleNext = useSafePress(handleNext, 500);
+
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       <View style={styles.content}>
@@ -271,7 +277,7 @@ const Step3ProfileSetup = ({ formData, setFormData, onNext, onBack }) => {
             ID Proof Upload{' '}
             <Text style={styles.labelSubtext}>(Aadhar/PAN/Driving license)</Text>
           </Text>
-          <TouchableOpacity style={styles.uploadContainer} onPress={handleIdProofUpload}>
+          <TouchableOpacity style={styles.uploadContainer} onPress={safeHandleIdProofUpload}>
             <View style={styles.uploadContent}>
               <Ionicons name="cloud-upload-outline" size={32} color="#4F46E5" />
               <Text style={styles.uploadText}>Choose your file</Text>
@@ -293,7 +299,7 @@ const Step3ProfileSetup = ({ formData, setFormData, onNext, onBack }) => {
             <Text style={styles.labelSubtext}>(Optional)</Text>
           </Text>
           <View style={styles.photoSection}>
-            <TouchableOpacity style={styles.photoUploadContainer} onPress={handleProfilePhotoUpload}>
+            <TouchableOpacity style={styles.photoUploadContainer} onPress={safeHandleProfilePhotoUpload}>
               <View style={styles.photoUploadContent}>
                 {profilePhoto ? (
                   <Image source={{ uri: profilePhoto.uri }} style={styles.profileImage} />
@@ -325,7 +331,7 @@ const Step3ProfileSetup = ({ formData, setFormData, onNext, onBack }) => {
             styles.nextButton,
             isFormValid ? styles.nextButtonActive : styles.nextButtonInactive
           ]}
-          onPress={handleNext}
+          onPress={safeHandleNext}
           disabled={!isFormValid}
         >
           <Text style={styles.nextButtonText}>Next</Text>

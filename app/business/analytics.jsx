@@ -7,7 +7,7 @@ import {
   TouchableOpacity,
   Dimensions,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -15,6 +15,7 @@ const { width } = Dimensions.get('window');
 
 const Analytics = () => {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [selectedPeriod, setSelectedPeriod] = useState('week'); // 'week', 'month', 'year'
 
   // Sample analytics data
@@ -158,9 +159,9 @@ const Analytics = () => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + 6 }]}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color="#020A66" />
         </TouchableOpacity>
@@ -315,7 +316,7 @@ const Analytics = () => {
           </View>
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 };
 
@@ -333,7 +334,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',
-    paddingTop: 30,
   },
   backButton: {
     padding: 8,

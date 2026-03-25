@@ -14,9 +14,11 @@ import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { getBankDetails, updateBankDetails } from '../../../lib/api/vendorWallet';
 import { ToastManager } from '../../components/NotificationToast';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const BankDetailsScreen = () => {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -131,7 +133,7 @@ const BankDetailsScreen = () => {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + 6 }]}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color="#020A66" />
         </TouchableOpacity>
@@ -280,7 +282,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingTop: 50,
   },
   backButton: {
     padding: 8,

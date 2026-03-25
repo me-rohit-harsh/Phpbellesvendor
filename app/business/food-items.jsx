@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -10,7 +10,7 @@ import {
   Modal,
   Platform,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import CustomAlert from '../components/CustomAlert';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -23,6 +23,7 @@ import { showImagePickerOptions } from '../../lib/utils/permissions';
 
 const FoodItemsManagement = () => {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { categoryId } = useLocalSearchParams();
   const [searchQuery, setSearchQuery] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
@@ -93,6 +94,45 @@ const FoodItemsManagement = () => {
   // Dynamic categories loaded from API - store as objects with id and name
   const [categories, setCategories] = useState([{ id: 'all', name: 'All' }]); // Start with 'All' as default
   const [categoryObjects, setCategoryObjects] = useState([]); // Store full category objects for API calls
+
+  const visibleCategories = useMemo(() => {
+    if (!Array.isArray(categories) || categories.length === 0) {
+      return [{ id: 'all', name: 'All' }];
+    }
+
+    const normalizedCategories = categories
+      .filter(Boolean)
+      .map((category, index) => ({
+        ...category,
+        id: category.id ?? `category-${index}`,
+        name:
+          typeof category.name === 'string' && category.name.trim().length > 0
+            ? category.name.trim()
+            : 'Unnamed',
+      }));
+
+    return normalizedCategories.length > 0
+      ? normalizedCategories
+      : [{ id: 'all', name: 'All' }];
+  }, [categories]);
+
+  const getEmptyItemState = useCallback(() => ({
+    name: '',
+    category: getDefaultCategory(),
+    price: '',
+    discount_price: '',
+    description: '',
+    image: null,
+    quantity: '',
+    type: 'veg',
+    preparation_time: '15',
+    calories: '',
+    tags: [],
+    sort_order: '1',
+    is_available: true,
+    totalOrders: 0,
+    weeklyOrders: 0,
+  }), [categories]);
   
   // Enhanced loadMenuItems function with better error handling
   const loadMenuItems = useCallback(async (selectedCategoryId = null, categoriesData = null) => {
@@ -514,7 +554,7 @@ const FoodItemsManagement = () => {
       await loadMenuItems();
       
       // Only show success if everything completed without errors
-      setNewItem({ name: '', category: getDefaultCategory(), price: '', discount_price: '', description: '', image: null, quantity: '', type: 'veg', preparation_time: '15', calories: '', tags: [], sort_order: '1', is_available: true });
+      setNewItem(getEmptyItemState());
       setShowAddModal(false);
       
       console.info('🎉 Food item creation process completed successfully');
@@ -559,14 +599,21 @@ const FoodItemsManagement = () => {
     }
   };
 
+  const handleCloseAddModal = () => {
+    setNewItem(getEmptyItemState());
+    setEditingItem(null);
+    setShowAddModal(false);
+  };
+
   const handleCloseEditModal = () => {
-    setNewItem({ name: '', category: getDefaultCategory(), price: '', discount_price: '', description: '', image: null, quantity: '', type: 'veg', preparation_time: '15', calories: '', tags: [], sort_order: '1', is_available: true });
+    setNewItem(getEmptyItemState());
     setEditingItem(null);
     setShowEditModal(false);
   };
 
   const handleOpenAddModal = () => {
-    setNewItem({ name: '', category: getDefaultCategory(), price: '', discount_price: '', description: '', image: null, quantity: '', type: 'veg', preparation_time: '15', calories: '', tags: [], sort_order: '1', is_available: true });
+    setNewItem(getEmptyItemState());
+    setEditingItem(null);
     setShowAddModal(true);
   };
 
@@ -710,7 +757,7 @@ const FoodItemsManagement = () => {
       // Reload menu items to get the updated list from server
       await loadMenuItems();
       
-      setNewItem({ name: '', category: getDefaultCategory(), price: '', discount_price: '', description: '', image: null, quantity: '', type: 'veg', preparation_time: '15', calories: '', tags: [], sort_order: '1', is_available: true });
+      setNewItem(getEmptyItemState());
       setEditingItem(null);
       setShowEditModal(false);
       showSuccessAlert('Success', 'Food item updated successfully!');
@@ -912,9 +959,9 @@ const FoodItemsManagement = () => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + 6 }]}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
           <Text style={styles.backButtonText}>← Back</Text>
         </TouchableOpacity>
@@ -950,10 +997,12 @@ const FoodItemsManagement = () => {
         horizontal 
         showsHorizontalScrollIndicator={false}
         style={styles.categoryContainer}
+        contentContainerStyle={styles.categoryContent}
+        keyboardShouldPersistTaps="handled"
       >
-        {categories.map((category) => (
+        {visibleCategories.map((category) => (
           <TouchableOpacity
-            key={category.id || category.name}
+            key={String(category.id)}
             style={[
               styles.categoryButton,
               selectedCategory === category.name && styles.selectedCategoryButton
@@ -994,19 +1043,20 @@ const FoodItemsManagement = () => {
         visible={showAddModal}
         animationType="slide"
         presentationStyle="pageSheet"
+        onRequestClose={handleCloseAddModal}
       >
         <SafeAreaView style={styles.modalContainer}>
           <View style={styles.modalHeader}>
-            <TouchableOpacity onPress={handleCloseEditModal}>
+            <TouchableOpacity onPress={handleCloseAddModal} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
               <Text style={styles.cancelButton}>Cancel</Text>
             </TouchableOpacity>
             <Text style={styles.modalTitle}>Add Food Item</Text>
-            <TouchableOpacity onPress={handleAddItem}>
+            <TouchableOpacity onPress={handleAddItem} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
               <Text style={styles.saveButton}>Save</Text>
             </TouchableOpacity>
           </View>
 
-          <ScrollView style={styles.modalContent}>
+          <ScrollView style={styles.modalContent} keyboardShouldPersistTaps="handled">
             {/* Image Picker */}
             <TouchableOpacity style={styles.imagePicker} onPress={pickImage}>
               {getImageUri(newItem.image) ? (
@@ -1269,19 +1319,20 @@ const FoodItemsManagement = () => {
         visible={showEditModal}
         animationType="slide"
         presentationStyle="pageSheet"
+        onRequestClose={handleCloseEditModal}
       >
         <SafeAreaView style={styles.modalContainer}>
           <View style={styles.modalHeader}>
-            <TouchableOpacity onPress={handleCloseEditModal}>
+            <TouchableOpacity onPress={handleCloseEditModal} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
               <Text style={styles.cancelButton}>Cancel</Text>
             </TouchableOpacity>
             <Text style={styles.modalTitle}>Edit Food Item</Text>
-            <TouchableOpacity onPress={handleUpdateItem}>
+            <TouchableOpacity onPress={handleUpdateItem} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
               <Text style={styles.saveButton}>Update</Text>
             </TouchableOpacity>
           </View>
 
-          <ScrollView style={styles.modalContent}>
+          <ScrollView style={styles.modalContent} keyboardShouldPersistTaps="handled">
             {/* Image Picker */}
             <TouchableOpacity style={styles.imagePicker} onPress={pickImage}>
               {getImageUri(newItem.image) ? (
@@ -1524,7 +1575,7 @@ const FoodItemsManagement = () => {
         buttons={alertConfig.buttons}
         onClose={() => setShowAlert(false)}
       />
-    </SafeAreaView>
+    </View>
   );
 };
 
@@ -1543,7 +1594,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',
-    paddingTop: 30,
   },
   backButton: {
     padding: 5,
@@ -1587,8 +1637,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#F3F4F6',
     borderRadius: 10,
     paddingHorizontal: 15,
-    paddingVertical: 0,
+    paddingVertical: 8,
     color: '#1F2937',
+    minHeight: 44,
   },
   searchInput: {
     flex: 1,
@@ -1596,26 +1647,37 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: 'MyFont-Regular',
     color: '#1F2937',
+    paddingVertical: 6,
   },
   categoryContainer: {
-    paddingHorizontal: 20,
-    paddingVertical: 10,
     backgroundColor: '#FFFFFF',
-    maxHeight: 55,
+    maxHeight: 72,
+  },
+  categoryContent: {
+    paddingHorizontal: 20,
+    paddingTop: 8,
+    paddingBottom: 14,
+    alignItems: 'center',
   },
   categoryButton: {
-    paddingHorizontal: 20,
-    paddingVertical: 8,
+    minHeight: 40,
+    minWidth: 68,
+    paddingHorizontal: 18,
+    paddingVertical: 10,
     marginRight: 10,
-    borderRadius: 20,
+    borderRadius: 999,
     backgroundColor: '#F3F4F6',
-    
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   selectedCategoryButton: {
     backgroundColor: '#020A66',
+    borderColor: '#020A66',
   },
   categoryText: {
-    fontSize: 12,
+    fontSize: 15,
     fontFamily: 'MyFont-Medium',
     color: '#6B7280',
   },
@@ -1748,7 +1810,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 20,
     paddingVertical: 15,
-    paddingTop: 30,
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',
   },

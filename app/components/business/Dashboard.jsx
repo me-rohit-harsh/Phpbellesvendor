@@ -9,7 +9,7 @@ import {
   ActivityIndicator,
   RefreshControl,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import CustomAlert from '../CustomAlert';
@@ -22,6 +22,7 @@ import { ToastManager } from '../NotificationToast';
 
 const Dashboard = ({ businessData }) => {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [activeTab, setActiveTab] = useState('overview');
   const [isRestaurantOpen, setIsRestaurantOpen] = useState(true);
   const [isToggling, setIsToggling] = useState(false);
@@ -282,9 +283,9 @@ const Dashboard = ({ businessData }) => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + 6 }]}>
         <View style={styles.headerContent}>
           <View style={styles.headerLeft}>
             <Text style={styles.welcomeText}>Welcome back!</Text>
@@ -335,6 +336,7 @@ const Dashboard = ({ businessData }) => {
 
       <ScrollView 
         style={styles.content} 
+        contentContainerStyle={{ paddingBottom: 24 + insets.bottom }}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
@@ -645,7 +647,7 @@ const Dashboard = ({ businessData }) => {
         buttons={alertConfig.buttons}
         onClose={() => setShowAlert(false)}
       />
-    </SafeAreaView>
+    </View>
   );
 };
 
@@ -669,10 +671,9 @@ const styles = StyleSheet.create({
   header: {
     backgroundColor: '#FFFFFF',
     paddingHorizontal: 16,
-    paddingVertical: 15,
+    paddingBottom: 14,
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',
-    paddingTop: 30
   },
   headerContent: {
     flexDirection: 'row',

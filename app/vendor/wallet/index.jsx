@@ -2,11 +2,14 @@ import React, { useCallback, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, RefreshControl } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getWalletBalance, getEarningsSummary } from '../../../lib/api/vendorWallet';
 import { ToastManager } from '../../components/NotificationToast';
+import { useSafePress } from '../../../lib/utils/clickSafety';
 
 const WalletScreen = () => {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [balance, setBalance] = useState(0);
   const [earnings, setEarnings] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -68,7 +71,7 @@ const WalletScreen = () => {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + 6 }]}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color="#020A66" />
         </TouchableOpacity>
@@ -215,7 +218,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingTop: 50,
   },
   backButton: {
     padding: 8,

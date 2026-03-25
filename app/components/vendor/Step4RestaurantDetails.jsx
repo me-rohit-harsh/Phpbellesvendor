@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import CustomAlert from '../CustomAlert';
 import { getVendorTypes, getFoodTypes } from '../../../lib/api/vendor';
 import PersistentStorage from '../../../lib/storage/persistentStorage';
+import { useSafePress } from '../../../lib/utils/clickSafety';
 
 const Step4RestaurantDetails = ({ onNext, onBack, formData, setFormData }) => {
   const [restaurantName, setRestaurantName] = useState(formData.restaurantName || '');
@@ -198,6 +199,9 @@ const Step4RestaurantDetails = ({ onNext, onBack, formData, setFormData }) => {
     onNext();
   };
 
+  // Wrapped version with click safety (prevents rapid clicks)
+  const safeHandleNext = useSafePress(handleNext, 500);
+
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       <View style={styles.content}>
@@ -316,7 +320,7 @@ const Step4RestaurantDetails = ({ onNext, onBack, formData, setFormData }) => {
         <TouchableOpacity style={styles.backButton} onPress={onBack}>
           <Text style={styles.backButtonText}>Back</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.nextButton} onPress={handleNext}>
+        <TouchableOpacity style={styles.nextButton} onPress={safeHandleNext}>
           <Text style={styles.nextButtonText}>Next</Text>
         </TouchableOpacity>
       </View>

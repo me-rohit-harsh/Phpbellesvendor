@@ -5,9 +5,11 @@ import { Ionicons } from '@expo/vector-icons';
 import CouponCard from './CouponCard';
 import { getCoupons, deleteCoupon } from './couponService';
 import { ToastManager } from '../../components/NotificationToast';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const CouponsScreen = () => {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [coupons, setCoupons] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -144,7 +146,7 @@ const CouponsScreen = () => {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + 6 }]}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color="#020A66" />
         </TouchableOpacity>
@@ -383,7 +385,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',
-    paddingTop: 30,
   },
   backButton: {
     padding: 8,

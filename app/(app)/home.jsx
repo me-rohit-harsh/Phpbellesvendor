@@ -16,6 +16,7 @@ export default function Home() {
   });
   const [vendorStatus, setVendorStatus] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [shouldRedirect, setShouldRedirect] = useState(null);
 
   useEffect(() => {
     const initializeApp = async () => {
@@ -26,10 +27,11 @@ export default function Home() {
         const isLoggedIn = await AsyncStorage.getItem('isVendorLoggedIn');
         const authToken = await AsyncStorage.getItem('auth_token') || await AsyncStorage.getItem('authToken');
         
-        // If no authentication data, redirect to registration
+        // If no authentication data, mark for redirect
         if (!isLoggedIn || !authToken) {
           console.info('No valid authentication data found, redirecting to registration');
-          router.replace("/vendor/register");
+          setShouldRedirect("/vendor/register");
+          setIsLoading(false);
           return;
         }
 
@@ -37,7 +39,8 @@ export default function Home() {
         const registrationData = await PersistentStorage.getRegistrationData();
         if (registrationData && registrationData.currentStep < 8) {
           console.info('Incomplete registration found, redirecting to continue registration');
-          router.replace("/vendor/register");
+          setShouldRedirect("/vendor/register");
+          setIsLoading(false);
           return;
         }
         
@@ -100,18 +103,18 @@ export default function Home() {
         console.error('Error initializing app:', error);
         
         // Check if this is a 401 error (token expired)
-        if (error.response?.status === 401 || error.message?.includes('401')) {
-          console.info('Authentication error detected, redirecting to registration');
-          router.replace("/vendor/register");
+        if (error.status === 401 || error.response?.status === 401 || error.message?.includes('Token expired')) {
+          console.info('Authentication error (401) detected, redirecting to registration');
+          setShouldRedirect("/vendor/register");
         } else {
           // For other errors, check if there's incomplete registration
           const registrationData = await PersistentStorage.getRegistrationData();
           if (registrationData && registrationData.currentStep < 8) {
             console.info('Error occurred but incomplete registration found, redirecting to continue registration');
-            router.replace("/vendor/register");
+            setShouldRedirect("/vendor/register");
           } else {
             // For other errors, redirect to registration as fallback
-            router.replace("/vendor/register");
+            setShouldRedirect("/vendor/register");
           }
         }
       } finally {
@@ -122,15 +125,22 @@ export default function Home() {
     initializeApp();
   }, []);
 
+  // Handle redirect in a separate effect to prevent render-phase updates
+  useEffect(() => {
+    if (shouldRedirect) {
+      router.replace(shouldRedirect);
+    }
+  }, [shouldRedirect, router]);
+
   // Handle navigation based on vendor status
   useEffect(() => {
     if (!isLoading && vendorStatus) {
-      if (vendorStatus.status === 'under_verification' || vendorStatus.status === 'no_vendor') {
-        // Show verification pending component instead of routing
-        // This will be handled in the render logic below
+      if (vendorStatus.status === 'no_vendor') {
+        // No vendor found, redirect to registration
+        setShouldRedirect("/vendor/register");
       }
     }
-  }, [vendorStatus, isLoading, router]);
+  }, [vendorStatus, isLoading]);
 
   // Show loading screen while checking status
   if (isLoading) {
@@ -152,22 +162,16 @@ export default function Home() {
     } else if (vendorStatus.status === 'under_verification') {
       // Vendor is under verification, show verification pending
       return <VerificationPending vendorData={vendorStatus} />;
-    } else if (vendorStatus.status === 'no_vendor') {
-      // No vendor found, redirect to registration
-      router.replace("/vendor/register");
-      return null;
-    } else {
-      // Unknown status, redirect to registration as fallback
-      console.info('Unknown vendor status:', vendorStatus.status);
-      router.replace("/vendor/register");
-      return null;
     }
   }
 
-  // If no vendor status yet, redirect to registration instead of showing dashboard
-  console.info('No vendor status available, redirecting to registration');
-  router.replace("/vendor/register");
-  return null;
+  // Fallback loading state while redirect happens
+  return (
+    <View style={styles.loadingContainer}>
+      <ActivityIndicator size="large" color="#FF6B35" />
+      <Text style={styles.loadingText}>Loading...</Text>
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({

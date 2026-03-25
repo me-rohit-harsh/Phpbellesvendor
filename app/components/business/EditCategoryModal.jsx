@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
   Switch,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { updateMenuCategory } from '../../../lib/api/vendor';
 
@@ -88,7 +89,7 @@ const EditCategoryModal = ({ visible, onClose, onCategoryUpdated, category }) =>
       presentationStyle="pageSheet"
       onRequestClose={handleClose}
     >
-      <View style={styles.container}>
+      <SafeAreaView style={styles.container}>
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity style={styles.closeButton} onPress={handleClose}>
@@ -158,7 +159,7 @@ const EditCategoryModal = ({ visible, onClose, onCategoryUpdated, category }) =>
             </View>
           )}
         </View>
-      </View>
+      </SafeAreaView>
     </Modal>
   );
 };
@@ -177,7 +178,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingTop: 50,
   },
   closeButton: {
     padding: 8,

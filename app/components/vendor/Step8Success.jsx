@@ -5,6 +5,7 @@ import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import PersistentStorage from '../../../lib/storage/persistentStorage';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useSafePress } from '../../../lib/utils/clickSafety';
 
 const { width, height } = Dimensions.get('window');
 
@@ -112,6 +113,9 @@ const Step8Success = () => {
       router.replace('/home'); // Navigate anyway
     }
   };
+
+  // Wrapped version with click safety (prevents rapid clicks)
+  const safeHandleContinue = useSafePress(handleContinue, 500);
 
   const ConfettiPiece = ({ anim, color, shape, size }) => (
     <Animated.View
@@ -247,7 +251,7 @@ const Step8Success = () => {
 
           <TouchableOpacity 
             style={styles.continueButton} 
-            onPress={handleContinue}
+            onPress={safeHandleContinue}
             activeOpacity={0.8}
           >
             <LinearGradient

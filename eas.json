@@ -7,6 +7,10 @@
     "development": {
       "developmentClient": true,
       "distribution": "internal",
+      "env": {
+        "EAS_BUILD_DISABLE_EXPO_DOCTOR_STEP": "1",
+        "NODE_ENV": "production"
+      },
       "android": {
         "buildType": "apk"
       },
@@ -14,12 +18,23 @@
     },
     "preview": {
       "distribution": "internal",
+      "env": {
+        "EAS_BUILD_DISABLE_EXPO_DOCTOR_STEP": "1",
+        "NODE_ENV": "production"
+      },
       "channel": "preview",
       "android": {
         "buildType": "apk"
       }
     },
     "production": {
+      "env": {
+        "EAS_BUILD_DISABLE_EXPO_DOCTOR_STEP": "1",
+        "NODE_ENV": "production"
+      },
+      "ios": {
+        "credentialsSource": "local"
+      },
       "autoIncrement": true,
       "channel": "production"
     }

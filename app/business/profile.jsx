@@ -13,7 +13,7 @@ import {
   Modal,
   Platform,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import CustomAlert from '../components/CustomAlert';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -28,6 +28,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 
 const ProfileManagement = () => {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   
   const [showAlert, setShowAlert] = useState(false);
   const [alertConfig, setAlertConfig] = useState({
@@ -448,7 +449,7 @@ const ProfileManagement = () => {
   ), []);
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
       {/* Loading/Saving Overlay */}
       {(isLoading || isSaving) && (
         <View style={styles.loadingOverlay}>
@@ -460,7 +461,7 @@ const ProfileManagement = () => {
       )}
       
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + 6 }]}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color="#020A66" />
         </TouchableOpacity>
@@ -971,7 +972,7 @@ const ProfileManagement = () => {
         buttons={alertConfig.buttons}
         onClose={() => setShowAlert(false)}
       />
-    </SafeAreaView>
+    </View>
   );
 };
 
@@ -990,7 +991,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',
-    paddingTop: 30, 
   },
   backButton: {
     padding: 5,

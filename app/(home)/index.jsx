@@ -306,7 +306,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#F3F4F6',
     borderRadius: 12,
     paddingHorizontal: 15,
-    paddingVertical: 12,
+    paddingVertical: 8,
+    minHeight: 44,
   },
   searchInput: {
     flex: 1,
@@ -314,6 +315,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: 'MyFont-Regular',
     color: '#1F2937',
+    paddingVertical: 6,
   },
   content: {
     flex: 1,

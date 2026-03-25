@@ -1,10 +1,13 @@
 import { Stack } from "expo-router";
+import { StatusBar } from "expo-status-bar";
 import useCustomFonts from "../hooks/useFonts";
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect, useState, useRef } from 'react';
 import { GlobalToast, ToastManager } from './components/NotificationToast';
 import PermissionHandler from './components/PermissionHandler';
-import useFCMNotifications from '../hooks/useFCMNotifications';
+import AppErrorBoundary from './components/AppErrorBoundary';
+import { useFCMNotifications } from '../hooks/useFCMNotifications';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 // Keep the splash screen visible while we fetch resources
 SplashScreen.preventAutoHideAsync();
@@ -26,34 +29,38 @@ export default function RootLayout() {
     }
   });
 
+  // Initialize toast manager
   useEffect(() => {
-    // Initialize toast manager
-    if (toastRef.current) {
+    if (appReady && toastRef.current) {
       ToastManager.setToastRef(toastRef.current);
     }
+  }, [appReady]);
 
+  useEffect(() => {
     // Set a timeout to ensure app doesn't hang if fonts fail to load
     const timeout = setTimeout(() => {
-      console.info('RootLayout: Proceeding without waiting for fonts');
-      setAppReady(true);
-      SplashScreen.hideAsync();
-    }, 2000); // 2 second timeout
+      if (!appReady) {
+        console.info('RootLayout: Proceeding without waiting for fonts');
+        setAppReady(true);
+        SplashScreen.hideAsync().catch(() => {});
+      }
+    }, 3000); // 3 second timeout
 
-    if (fontsLoaded) {
+    if (fontsLoaded && !appReady) {
       console.info('RootLayout: Fonts loaded successfully');
       clearTimeout(timeout);
       setAppReady(true);
-      SplashScreen.hideAsync();
+      SplashScreen.hideAsync().catch(() => {});
     }
 
     return () => clearTimeout(timeout);
-  }, [fontsLoaded]);
+  }, [fontsLoaded, appReady]);
 
   const handlePermissionsGranted = () => {
     setPermissionsGranted(true);
   };
 
-  // Don't render anything until app is ready
+  // Keep the splash screen visible until app is ready
   if (!appReady) {
     return null;
   }
@@ -61,19 +68,25 @@ export default function RootLayout() {
   // Show permission handler before main app
   if (!permissionsGranted) {
     return (
-      <>
-        <PermissionHandler onPermissionsGranted={handlePermissionsGranted}>
-          <Stack screenOptions={{ headerShown: false }} />
-        </PermissionHandler>
-        <GlobalToast ref={toastRef} />
-      </>
+      <SafeAreaProvider>
+        <StatusBar style="dark" translucent backgroundColor="transparent" />
+        <AppErrorBoundary>
+          <PermissionHandler onPermissionsGranted={handlePermissionsGranted}>
+            <Stack screenOptions={{ headerShown: false }} />
+          </PermissionHandler>
+          <GlobalToast ref={toastRef} />
+        </AppErrorBoundary>
+      </SafeAreaProvider>
     );
   }
 
   return (
-    <>
-      <Stack screenOptions={{ headerShown: false }} />
-      <GlobalToast ref={toastRef} />
-    </>
+    <SafeAreaProvider>
+      <StatusBar style="dark" translucent backgroundColor="transparent" />
+      <AppErrorBoundary>
+        <Stack screenOptions={{ headerShown: false }} />
+        <GlobalToast ref={toastRef} />
+      </AppErrorBoundary>
+    </SafeAreaProvider>
   );
 }

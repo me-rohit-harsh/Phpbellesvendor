@@ -15,6 +15,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import CustomAlert from '../CustomAlert';
 import { requestOTP, APIError, isValidationError, formatValidationErrors, getVendorStatus } from '../../../lib/api';
 import PersistentStorage from '../../../lib/storage/persistentStorage';
+import { useSafePress } from '../../../lib/utils/clickSafety';
 
 const Step1PhoneEmail = ({ formData, setFormData, onNext }) => {
   const router = useRouter();
@@ -171,6 +172,9 @@ const Step1PhoneEmail = ({ formData, setFormData, onNext }) => {
     }
   };
 
+  // Wrapped version with click safety (prevents rapid clicks)
+  const safeHandleSendOTP = useSafePress(handleSendOTP, 500);
+
   return (
     <KeyboardAvoidingView 
       style={styles.container} 
@@ -226,7 +230,7 @@ const Step1PhoneEmail = ({ formData, setFormData, onNext }) => {
               styles.sendButton,
               canSendOtp ? styles.sendButtonActive : styles.sendButtonInactive
             ]}
-            onPress={handleSendOTP}
+            onPress={safeHandleSendOTP}
             disabled={!canSendOtp}
           >
             <Text style={styles.sendButtonText} numberOfLines={1} ellipsizeMode="tail">Send OTP</Text>

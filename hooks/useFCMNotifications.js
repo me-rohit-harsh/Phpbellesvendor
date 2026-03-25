@@ -156,13 +156,27 @@ export const useFCMNotifications = ({
           isDevice: Device.isDevice,
           permission: status
         });
-        setTimeout(() => {
-          fcmService.registerForPushNotifications();
-        }, 3000);
         return null;
       }
     } catch (error) {
       console.error('❌ Error registering for notifications:', error);
+      return null;
+    }
+  }, []);
+
+  /**
+   * Ensure device token is properly registered
+   * This can be called after login to ensure token is synced with server
+   */
+  const ensureDeviceTokenSynced = useCallback(async () => {
+    try {
+      const token = await fcmService.ensureDeviceTokenRegistered();
+      if (token) {
+        console.info('✅ Device token synced successfully');
+      }
+      return token;
+    } catch (error) {
+      console.error('❌ Error syncing device token:', error);
       return null;
     }
   }, []);
@@ -217,6 +231,7 @@ export const useFCMNotifications = ({
 
   return {
     registerForNotifications,
+    ensureDeviceTokenSynced,
     getFCMToken,
     showLocalNotification,
     clearAllNotifications,

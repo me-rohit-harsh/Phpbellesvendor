@@ -138,63 +138,62 @@ const CustomAlert = ({
           style={styles.overlayTouch}
           activeOpacity={1}
           onPress={handleDismiss}
+        />
+
+        <Animated.View
+          style={[
+            styles.alertContainer,
+            {
+              transform: [{ scale: scaleAnim }],
+            },
+          ]}
         >
-          <Animated.View
-            style={[
-              styles.alertContainer,
-              {
-                transform: [{ scale: scaleAnim }],
-              },
-            ]}
-            onStartShouldSetResponder={() => true}
-          >
-            {/* Icon */}
-            <View style={[styles.iconContainer, { backgroundColor: iconConfig.bgColor }]}>
-              <Ionicons name={iconConfig.name} size={32} color={iconConfig.color} />
-            </View>
+          {/* Icon */}
+          <View style={[styles.iconContainer, { backgroundColor: iconConfig.bgColor }]}>
+            <Ionicons name={iconConfig.name} size={32} color={iconConfig.color} />
+          </View>
 
-            {/* Content */}
-            <View style={styles.content}>
-              {title && <Text style={styles.title}>{title}</Text>}
-              {message && <Text style={styles.message}>{message}</Text>}
-            </View>
+          {/* Content */}
+          <View style={styles.content}>
+            {title && <Text style={styles.title}>{title}</Text>}
+            {message && <Text style={styles.message}>{message}</Text>}
+          </View>
 
-            {/* Buttons */}
-            <View style={styles.buttonContainer}>
-              {alertButtons.map((button, index) => (
-                <TouchableOpacity
-                  key={index}
+          {/* Buttons */}
+          <View style={styles.buttonContainer}>
+            {alertButtons.map((button, index) => (
+              <TouchableOpacity
+                key={index}
+                style={[
+                  styles.button,
+                  button.style === 'cancel' && styles.cancelButton,
+                  button.style === 'destructive' && styles.destructiveButton,
+                  alertButtons.length === 1 && styles.singleButton,
+                  index === 0 && alertButtons.length > 1 && styles.firstButton,
+                  index === alertButtons.length - 1 && alertButtons.length > 1 && styles.lastButton,
+                ]}
+                onPress={() => {
+                  if (button.onPress) {
+                    button.onPress();
+                  } else {
+                    handleDismiss();
+                  }
+                }}
+                activeOpacity={0.8}
+              >
+                <Text
                   style={[
-                    styles.button,
-                    button.style === 'cancel' && styles.cancelButton,
-                    button.style === 'destructive' && styles.destructiveButton,
-                    alertButtons.length === 1 && styles.singleButton,
-                    index === 0 && alertButtons.length > 1 && styles.firstButton,
-                    index === alertButtons.length - 1 && alertButtons.length > 1 && styles.lastButton,
+                    styles.buttonText,
+                    button.style === 'cancel' && styles.cancelButtonText,
+                    button.style === 'destructive' && styles.destructiveButtonText,
                   ]}
-                  onPress={() => {
-                    if (button.onPress) {
-                      button.onPress();
-                    } else {
-                      handleDismiss();
-                    }
-                  }}
-                  activeOpacity={0.8}
                 >
-                  <Text
-                    style={[
-                      styles.buttonText,
-                      button.style === 'cancel' && styles.cancelButtonText,
-                      button.style === 'destructive' && styles.destructiveButtonText,
-                    ]}
-                  >
-                    {button.text}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </Animated.View>
-        </TouchableOpacity>
+                  {button.text}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </Animated.View>
       </Animated.View>
     </Modal>
   );
@@ -208,10 +207,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   overlayTouch: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    width: '100%',
+    ...StyleSheet.absoluteFillObject,
   },
   alertContainer: {
     backgroundColor: '#FFFFFF',

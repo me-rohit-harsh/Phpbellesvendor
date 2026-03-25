@@ -9,13 +9,14 @@ import {
   Modal,
   Switch,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import CustomAlert from '../components/CustomAlert';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
 const OffersManagement = () => {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [searchQuery, setSearchQuery] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -534,9 +535,9 @@ const OffersManagement = () => {
   );
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + 6 }]}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color="#020A66" />
         </TouchableOpacity>
@@ -653,7 +654,7 @@ const OffersManagement = () => {
         buttons={alertConfig.buttons}
         onClose={() => setShowAlert(false)}
       />
-    </SafeAreaView>
+    </View>
   );
 };
 
@@ -671,7 +672,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',
-    paddingTop: 30,
   },
   backButton: {
     padding: 8,
@@ -691,9 +691,11 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
     marginVertical: 12,
     paddingHorizontal: 16,
+    paddingVertical: 8,
     borderRadius: 8,
     borderWidth: 1,
     borderColor: '#E5E7EB',
+    minHeight: 44,
   },
   searchIcon: {
     marginRight: 12,
@@ -703,7 +705,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: 'MyFont-Regular',
     color: '#374151',
-    paddingVertical: 12,
+    paddingVertical: 6,
   },
   summaryContainer: {
     flexDirection: 'row',

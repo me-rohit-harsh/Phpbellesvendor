@@ -193,8 +193,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
     paddingHorizontal: 16,
-    paddingVertical: 0,
+    paddingVertical: 8,
     marginBottom: 16,
+    minHeight: 44,
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
@@ -212,6 +213,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: 'MyFont-Regular',
     color: '#1F2937',
+    paddingVertical: 6,
   },
   clearButton: {
     padding: 4,

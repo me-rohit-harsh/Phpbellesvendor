@@ -8,7 +8,6 @@ import {
   Image,
   KeyboardAvoidingView,
   Platform,
-  ScrollView,
   Animated,
 } from 'react-native';
 import CustomAlert from '../CustomAlert';
@@ -17,10 +16,13 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import PersistentStorage from '../../../lib/storage/persistentStorage';
+import { useSafePress } from '../../../lib/utils/clickSafety';
+
+const OTP_LENGTH = 6;
 
 const Step2OTPVerification = ({ formData, setFormData, onNext, onBack }) => {
   const router = useRouter();
-  const [otp, setOtp] = useState(['', '', '', '', '', '']);
+  const [otp, setOtp] = useState(Array(OTP_LENGTH).fill(''));
   const [timer, setTimer] = useState(10);
   const [canResend, setCanResend] = useState(false);
   const [verificationStatus, setVerificationStatus] = useState('idle'); // 'idle', 'verifying', 'success', 'error'
@@ -28,6 +30,8 @@ const Step2OTPVerification = ({ formData, setFormData, onNext, onBack }) => {
   const [alertConfig, setAlertConfig] = useState({});
   const inputRefs = useRef([]);
   const shakeAnim = useRef(new Animated.Value(0)).current;
+  const pendingVerifyTimeoutRef = useRef(null);
+  const lastSubmittedOtpRef = useRef('');
 
   useEffect(() => {
     if (timer > 0) {
@@ -60,28 +64,87 @@ const Step2OTPVerification = ({ formData, setFormData, onNext, onBack }) => {
 
   // Note: Clipboard auto-fill removed due to Expo Go compatibility issues
 
-  const validateOTP = (text) => {
-    // Only allow digits and limit to 1 character
-    const cleanText = text.replace(/[^0-9]/g, '');
-    return cleanText.slice(0, 1);
+  useEffect(() => () => {
+    if (pendingVerifyTimeoutRef.current) {
+      clearTimeout(pendingVerifyTimeoutRef.current);
+    }
+  }, []);
+
+  const normalizeOtpDigits = (text) => text.replace(/[^0-9]/g, '').slice(0, OTP_LENGTH);
+
+  const setOtpFromString = (otpValue) => {
+    const normalizedDigits = normalizeOtpDigits(otpValue).split('');
+    const nextOtp = Array.from({ length: OTP_LENGTH }, (_, index) => normalizedDigits[index] || '');
+    setOtp(nextOtp);
+    return nextOtp;
+  };
+
+  const queueAutoVerify = (otpValue) => {
+    const normalizedOtp = normalizeOtpDigits(otpValue);
+
+    if (normalizedOtp.length !== OTP_LENGTH) {
+      return;
+    }
+
+    if (verificationStatus === 'verifying' || lastSubmittedOtpRef.current === normalizedOtp) {
+      return;
+    }
+
+    if (pendingVerifyTimeoutRef.current) {
+      clearTimeout(pendingVerifyTimeoutRef.current);
+    }
+
+    pendingVerifyTimeoutRef.current = setTimeout(() => {
+      verifyOtp(normalizedOtp);
+    }, 120);
   };
 
   const handleOtpChange = (value, index) => {
-    const validatedValue = validateOTP(value);
+    const sanitizedValue = normalizeOtpDigits(value);
+
+    if (verificationStatus !== 'idle') {
+      lastSubmittedOtpRef.current = '';
+      if (verificationStatus !== 'verifying') {
+        setVerificationStatus('idle');
+      }
+    }
+
+    if (!sanitizedValue) {
+      const newOtp = [...otp];
+      newOtp[index] = '';
+      setOtp(newOtp);
+      return;
+    }
+
+    if (sanitizedValue.length > 1) {
+      const filledOtp = setOtpFromString(sanitizedValue);
+      const filledLength = filledOtp.filter(Boolean).length;
+
+      if (filledLength < OTP_LENGTH) {
+        inputRefs.current[filledLength]?.focus();
+      } else {
+        inputRefs.current[OTP_LENGTH - 1]?.blur();
+        queueAutoVerify(filledOtp.join(''));
+      }
+      return;
+    }
+
+    const validatedValue = sanitizedValue;
     const newOtp = [...otp];
     newOtp[index] = validatedValue;
     setOtp(newOtp);
 
     // Auto focus next input
-    if (validatedValue && index < 5) {
+    if (validatedValue && index < OTP_LENGTH - 1) {
       inputRefs.current[index + 1]?.focus();
     }
     
     // Auto-verify when all 6 digits are entered
-    if (validatedValue && index === 5) {
+    if (validatedValue) {
       const completeOtp = newOtp.join('');
-      if (completeOtp.length === 6) {
-        setTimeout(() => verifyOtp(completeOtp), 100);
+      if (completeOtp.length === OTP_LENGTH) {
+        inputRefs.current[index]?.blur();
+        queueAutoVerify(completeOtp);
       }
     }
   };
@@ -103,17 +166,26 @@ const Step2OTPVerification = ({ formData, setFormData, onNext, onBack }) => {
   };
 
   const verifyOtp = async (otpToVerify = null) => {
-    const enteredOtp = otpToVerify || otp.join('');
+    const enteredOtp = normalizeOtpDigits(otpToVerify || otp.join(''));
     
-    if (enteredOtp.length !== 6) {
+    if (enteredOtp.length !== OTP_LENGTH) {
       setAlertConfig({
         title: 'Incomplete OTP',
-        message: 'Please enter all 6 digits of the OTP.',
+        message: `Please enter all ${OTP_LENGTH} digits of the OTP.`,
         type: 'warning',
         buttons: [{ text: 'OK', onPress: () => setShowAlert(false) }]
       });
       setShowAlert(true);
       return;
+    }
+
+    if (verificationStatus === 'verifying') {
+      return;
+    }
+
+    lastSubmittedOtpRef.current = enteredOtp;
+    if (pendingVerifyTimeoutRef.current) {
+      clearTimeout(pendingVerifyTimeoutRef.current);
     }
     
     setVerificationStatus('verifying');
@@ -228,6 +300,7 @@ const Step2OTPVerification = ({ formData, setFormData, onNext, onBack }) => {
       
     } catch (error) {
       console.error('OTP verification error:', error);
+      lastSubmittedOtpRef.current = '';
       setVerificationStatus('error');
       
       // Shake animation for wrong OTP
@@ -257,7 +330,7 @@ const Step2OTPVerification = ({ formData, setFormData, onNext, onBack }) => {
           setShowAlert(false);
           setVerificationStatus('idle');
           // Clear OTP inputs
-          setOtp(['', '', '', '', '', '']);
+          setOtp(Array(OTP_LENGTH).fill(''));
           inputRefs.current[0]?.focus();
         }}]
       });
@@ -289,7 +362,8 @@ const Step2OTPVerification = ({ formData, setFormData, onNext, onBack }) => {
         setCanResend(false);
         
         // Clear current OTP inputs
-        setOtp(['', '', '', '', '', '']);
+        lastSubmittedOtpRef.current = '';
+        setOtp(Array(OTP_LENGTH).fill(''));
         setVerificationStatus('idle');
         inputRefs.current[0]?.focus();
         
@@ -329,6 +403,10 @@ const Step2OTPVerification = ({ formData, setFormData, onNext, onBack }) => {
   };
 
   const isOtpComplete = otp.every(digit => digit !== '');
+
+  // Wrapped versions with click safety (prevents rapid clicks)
+  const safeVerifyOtp = useSafePress(() => verifyOtp(), 500);
+  const safeHandleResendOTP = useSafePress(handleResendOTP, 500);
 
   return (
     <KeyboardAvoidingView 
@@ -386,10 +464,14 @@ const Step2OTPVerification = ({ formData, setFormData, onNext, onBack }) => {
                 value={digit}
                 onChangeText={(value) => handleOtpChange(value, index)}
                 onKeyPress={(e) => handleKeyPress(e, index)}
-                keyboardType="numeric"
-                maxLength={1}
+                keyboardType={Platform.OS === 'ios' ? 'number-pad' : 'numeric'}
+                maxLength={OTP_LENGTH}
                 textAlign="center"
                 editable={verificationStatus !== 'verifying'}
+                textContentType={Platform.OS === 'ios' ? 'oneTimeCode' : 'none'}
+                autoComplete={Platform.OS === 'android' ? 'sms-otp' : 'one-time-code'}
+                importantForAutofill="yes"
+                selectTextOnFocus
               />
             );
           })}
@@ -404,7 +486,7 @@ const Step2OTPVerification = ({ formData, setFormData, onNext, onBack }) => {
                 styles.resendLink,
                 canResend ? styles.resendLinkActive : styles.resendLinkInactive
               ]}
-              onPress={handleResendOTP}
+              onPress={safeHandleResendOTP}
             >
               resend it in {timer} secs
             </Text>
@@ -427,7 +509,7 @@ const Step2OTPVerification = ({ formData, setFormData, onNext, onBack }) => {
             isOtpComplete ? styles.verifyButtonActive : styles.verifyButtonInactive,
             verificationStatus === 'verifying' && styles.verifyButtonDisabled
           ]}
-          onPress={() => verifyOtp()}
+          onPress={safeVerifyOtp}
           disabled={!isOtpComplete || verificationStatus === 'verifying'}
         >
           <Text style={styles.verifyButtonText}>Verify Manually</Text>

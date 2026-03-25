@@ -2,12 +2,15 @@ import React, { useCallback, useState } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getVendorOrders } from '../../../lib/api/vendorOrders';
 import OrderCard from '../../components/vendor/OrderCard';
 import { ToastManager } from '../../components/NotificationToast';
+import { useSafePress } from '../../../lib/utils/clickSafety';
 
 const OrdersScreen = () => {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -48,6 +51,10 @@ const OrdersScreen = () => {
     await fetchOrders();
     setRefreshing(false);
   }, [fetchOrders]);
+
+  // Safe handlers to prevent rapid clicks
+  const safeFetchOrders = useSafePress(fetchOrders, 500);
+  const safeNavigateBack = useSafePress(() => router.back(), 500);
 
   const getCustomerDisplayName = (order) => {
     const norm = (s) => String(s).replace(/\s+/g, ' ').trim();
@@ -137,6 +144,9 @@ const OrdersScreen = () => {
     const total = computeTotal(item);
     const status = item?.status ?? item?.order_status;
     const createdAt = item?.created_at ?? item?.createdAt ?? item?.date;
+    
+    // Safe navigation with debounce
+    const safeNavigate = useSafePress(() => router.push(`/vendor/orders/${id}`), 500);
 
     return (
       <OrderCard
@@ -145,7 +155,7 @@ const OrdersScreen = () => {
         total={total}
         status={status}
         created_at={createdAt}
-        onPress={() => router.push(`/vendor/orders/${id}`)}
+        onPress={safeNavigate}
       />
     );
   };
@@ -172,7 +182,7 @@ const OrdersScreen = () => {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + 6 }]}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color="#020A66" />
         </TouchableOpacity>
@@ -212,7 +222,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingTop: 50,
   },
   backButton: {
     padding: 8,

@@ -75,17 +75,14 @@ export default function useImagePicker() {
         }
       }
 
-      // Fallback: iOS uses expo-image-picker; older Android uses DocumentPicker
+      // Fallback: iOS uses expo-image-picker; older Android uses error message
       if (Platform.OS === 'android') {
-        const doc = await (await import('expo-document-picker')).getDocumentAsync({ type: 'image/*', copyToCacheDirectory: true });
-        if (!doc.canceled && doc.assets && doc.assets.length > 0) {
-          const uri = doc.assets[0]?.uri ?? null;
-          if (!uri) {
-            return { canceled: true };
-          }
-          setImageUri(uri);
-          return { canceled: false, uri };
-        }
+        // For older Android versions without Photo Picker, show error
+        Alert.alert(
+          'Image Selection Not Available',
+          'Image selection is not supported on this Android version. Please update your device to Android 11 or later.',
+          [{ text: 'OK' }]
+        );
         return { canceled: true };
       } else {
         const result = await ImagePicker.launchImageLibraryAsync({

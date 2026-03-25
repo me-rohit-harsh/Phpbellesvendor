@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from 'rea
 import { Ionicons } from '@expo/vector-icons';
 import { acceptVendorOrder, rejectVendorOrder, readyForPickup } from '../../../lib/api/vendorOrders';
 import { ToastManager } from '../../components/NotificationToast';
+import { useSafePress } from '../../../lib/utils/clickSafety';
 
 const PrimaryButton = ({ title, onPress, disabled, icon }) => (
   <TouchableOpacity
@@ -71,6 +72,11 @@ const OrderActionButtons = ({ orderId, status, onActionComplete }) => {
     }
   };
 
+  // Wrapped versions with click safety (prevents rapid clicks)
+  const safeHandleAccept = useSafePress(handleAccept, 500);
+  const safeHandleReject = useSafePress(handleReject, 500);
+  const safeHandleReady = useSafePress(handleReady, 500);
+
   if (!status) {
     return null;
   }
@@ -86,14 +92,14 @@ const OrderActionButtons = ({ orderId, status, onActionComplete }) => {
 
       {status === 'pending' && (
         <View style={styles.row}>
-          <PrimaryButton title="Accept" onPress={handleAccept} disabled={loading} icon="checkmark" />
-          <DangerButton title="Reject" onPress={handleReject} disabled={loading} icon="close" />
+          <PrimaryButton title="Accept" onPress={safeHandleAccept} disabled={loading} icon="checkmark" />
+          <DangerButton title="Reject" onPress={safeHandleReject} disabled={loading} icon="close" />
         </View>
       )}
 
       {(['accepted_by_vendor', 'running', 'accepted', 'in_progress', 'processing', 'preparing'].includes(status)) && (
         <View style={styles.row}>
-          <PrimaryButton title="Ready for Pickup" onPress={handleReady} disabled={loading} icon="bag-check" />
+          <PrimaryButton title="Ready for Pickup" onPress={safeHandleReady} disabled={loading} icon="bag-check" />
         </View>
       )}
     </View>

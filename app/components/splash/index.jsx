@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { View, Text, Image, StyleSheet, ImageBackground } from "react-native";
+import { View, Text, Image, StyleSheet, ImageBackground, Platform } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -120,7 +120,7 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 36,
     textAlign: "center",
-    fontFamily: "MyFont-Bold",
+    fontFamily: Platform.OS === 'ios' ? "MyFont-Bold" : "MyFont-Bold", // Ensure it doesn't crash if font fails
     marginBottom: 10,
     textTransform: "uppercase",
     lineHeight: 32,

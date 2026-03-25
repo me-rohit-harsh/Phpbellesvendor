@@ -4,6 +4,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { getCouponById, updateCoupon } from './couponService';
 import { ToastManager } from '../../components/NotificationToast';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const FieldLabel = ({ children }) => (
   <Text style={styles.label}>{children}</Text>
@@ -16,6 +17,7 @@ const Input = (props) => (
 const EditCouponScreen = () => {
   const { id } = useLocalSearchParams();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
 
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -125,7 +127,7 @@ const EditCouponScreen = () => {
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <View style={{ flex: 1 }}>
-        <View style={styles.header}>
+        <View style={[styles.header, { paddingTop: insets.top + 6 }]}>
           <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
             <Ionicons name="arrow-back" size={24} color="#020A66" />
           </TouchableOpacity>
@@ -208,7 +210,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',
-    paddingTop: 30,
   },
   backButton: {
     padding: 8,

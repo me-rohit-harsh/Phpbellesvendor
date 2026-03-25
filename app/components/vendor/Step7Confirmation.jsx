@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import CustomAlert from '../CustomAlert';
 import { registerVendor, APIError, isValidationError, formatValidationErrors } from '../../../lib/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useSafePress } from '../../../lib/utils/clickSafety';
 
 const Step7Confirmation = ({ onNext, onBack, formData, setFormData }) => {
   const [showAlert, setShowAlert] = useState(false);
@@ -120,6 +121,9 @@ const Step7Confirmation = ({ onNext, onBack, formData, setFormData }) => {
     });
     setShowAlert(true);
   };
+
+  // Wrapped version with click safety (prevents rapid clicks)
+  const safeHandleSubmit = useSafePress(handleSubmit, 500);
 
   const InfoRow = ({ label, value, icon }) => (
     <View style={styles.infoRow}>
@@ -267,7 +271,7 @@ const Step7Confirmation = ({ onNext, onBack, formData, setFormData }) => {
         </TouchableOpacity>
         <TouchableOpacity 
           style={[styles.submitButton, isSubmitting && styles.submitButtonDisabled]} 
-          onPress={handleSubmit}
+          onPress={safeHandleSubmit}
           disabled={isSubmitting}
         >
           <Text style={styles.submitButtonText}>
