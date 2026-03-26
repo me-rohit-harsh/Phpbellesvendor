@@ -24,6 +24,7 @@ const Step1PhoneEmail = ({ formData, setFormData, onNext }) => {
   const [showAlert, setShowAlert] = useState(false);
   const [alertConfig, setAlertConfig] = useState({});
   const [isLoginMode, setIsLoginMode] = useState(false);
+  const [isSending, setIsSending] = useState(false);
 
   // Helper functions for alerts
   const showErrorAlert = (message) => {
@@ -103,62 +104,27 @@ const Step1PhoneEmail = ({ formData, setFormData, onNext }) => {
       showErrorAlert('Please enter a valid 10-digit phone number');
       return;
     }
-    
+
     if (!email || !isValidEmail(email)) {
       showErrorAlert('Please enter a valid email address');
       return;
     }
-    
+
+    setIsSending(true);
     try {
-      // Show loading state
-      setAlertConfig({
-        title: 'Checking Account',
-        message: 'Please wait while we verify your details...',
-        type: 'info',
-        buttons: []
-      });
-      setShowAlert(true);
-      
-      // First, try to request OTP (this will work for both new and existing users)
-      const response = await requestOTP({
-        phone: phoneNumber,
-        email: email,
-        role_id: "3"
-      });
-      
-      // Store the phone and email temporarily
+      await requestOTP({ phone: phoneNumber, email, role_id: "3" });
+
       await AsyncStorage.setItem('tempPhone', phoneNumber);
       await AsyncStorage.setItem('tempEmail', email);
-      
-      setFormData({
-        ...formData,
-        phoneNumber,
-        email,
-        isAuthorizedBusiness: true,
-        isLoginMode: isLoginMode
-      });
-      
-      setAlertConfig({
-        title: 'OTP Sent',
-        message: 'OTP has been sent to your phone number and email address.',
-        type: 'success',
-        autoClose: true,
-        autoCloseDelay: 2000,
-        buttons: []
-      });
-      setShowAlert(false);
-      
-      // Navigate to OTP screen
-      setTimeout(() => {
-        setShowAlert(false);
-        onNext();
-      }, 2000);
-      
+
+      setFormData({ ...formData, phoneNumber, email, isAuthorizedBusiness: true });
+
+      // Navigate immediately — no artificial delay
+      onNext();
     } catch (error) {
       console.error('OTP request error:', error);
-      
+
       let errorMessage = 'Failed to send OTP. Please try again.';
-      
       if (error instanceof APIError) {
         if (isValidationError(error)) {
           const validationErrors = formatValidationErrors(error.data);
@@ -167,8 +133,9 @@ const Step1PhoneEmail = ({ formData, setFormData, onNext }) => {
           errorMessage = error.message;
         }
       }
-      
       showErrorAlert(errorMessage);
+    } finally {
+      setIsSending(false);
     }
   };
 
@@ -225,15 +192,17 @@ const Step1PhoneEmail = ({ formData, setFormData, onNext }) => {
             />
           </View>
 
-          <TouchableOpacity 
+          <TouchableOpacity
             style={[
               styles.sendButton,
-              canSendOtp ? styles.sendButtonActive : styles.sendButtonInactive
+              canSendOtp && !isSending ? styles.sendButtonActive : styles.sendButtonInactive
             ]}
             onPress={safeHandleSendOTP}
-            disabled={!canSendOtp}
+            disabled={!canSendOtp || isSending}
           >
-            <Text style={styles.sendButtonText} numberOfLines={1} ellipsizeMode="tail">Send OTP</Text>
+            <Text style={styles.sendButtonText} numberOfLines={1} ellipsizeMode="tail">
+              {isSending ? 'Sending OTP...' : 'Send OTP'}
+            </Text>
           </TouchableOpacity>
         </View>
       </ScrollView>

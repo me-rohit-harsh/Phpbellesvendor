@@ -15,11 +15,10 @@ import CustomAlert from '../components/CustomAlert';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
-import * as ImagePicker from 'expo-image-picker';
 // Import Android-specific functions
 import { getMenuItems, getMenuItemsByCategory, getMenuCategories, createMenuItem, updateMenuItem, toggleMenuItemStock } from '../../lib/api/vendor';
 // removed api import previously used for connectivity tests
-import { showImagePickerOptions } from '../../lib/utils/permissions';
+import { safeImagePicker } from '../../lib/utils/permissions';
 
 const FoodItemsManagement = () => {
   const router = useRouter();
@@ -32,6 +31,7 @@ const FoodItemsManagement = () => {
   const [editingItem, setEditingItem] = useState(null);
   const [showAlert, setShowAlert] = useState(false);
   const [alertConfig, setAlertConfig] = useState({ title: '', message: '', type: 'error', buttons: [] });
+  const [showPickerOptions, setShowPickerOptions] = useState(false);
   
   // Add ref to track if data has been loaded to prevent infinite loops
   const hasLoadedData = useRef(false);
@@ -201,8 +201,8 @@ const FoodItemsManagement = () => {
         let categoryName = '';
         
         // Priority 1: Map using menu_category_id and loaded categoryObjects
-        // We use categoryObjects state if available
-        const categoriesToSearch = categoryObjects || [];
+        // Use availableCategories (passed in or from state) to avoid stale closure
+        const categoriesToSearch = availableCategories || [];
         
         if (item.menu_category_id && categoriesToSearch.length > 0) {
           const matchingCategory = categoriesToSearch.find(cat => 
@@ -374,17 +374,17 @@ const FoodItemsManagement = () => {
   const handleCategorySelect = useCallback(async (category) => {
     console.info('🎯 Category selected:', category);
     setSelectedCategory(category.name);
-    
-    // Load items based on selected category
+
+    // Load items based on selected category, always pass current categoryObjects
+    // to avoid stale closure inside loadMenuItems
     if (category.id === 'all' || category.name === 'All') {
       console.info('📋 Loading all items...');
-      await loadMenuItems(); // Load all items
+      await loadMenuItems(null, categoryObjects);
     } else {
       console.info('🏷️ Loading items for category:', category.name, 'ID:', category.id);
-      // Load items for the specific category
-      await loadMenuItems(String(category.id));
+      await loadMenuItems(String(category.id), categoryObjects);
     }
-  }, [loadMenuItems]); // Depend on loadMenuItems since we call it
+  }, [loadMenuItems, categoryObjects]);
 
   // Connectivity test handler removed — not needed in production UI
 
@@ -551,8 +551,8 @@ const FoodItemsManagement = () => {
       }
       
       // Reload menu items to get the updated list from server
-      await loadMenuItems();
-      
+      await loadMenuItems(null, categoryObjects);
+
       // Only show success if everything completed without errors
       setNewItem(getEmptyItemState());
       setShowAddModal(false);
@@ -755,8 +755,8 @@ const FoodItemsManagement = () => {
       const response = await updateMenuItem(editingItem.id, itemData);
       
       // Reload menu items to get the updated list from server
-      await loadMenuItems();
-      
+      await loadMenuItems(null, categoryObjects);
+
       setNewItem(getEmptyItemState());
       setEditingItem(null);
       setShowEditModal(false);
@@ -867,18 +867,16 @@ const FoodItemsManagement = () => {
   };
 
   const pickImage = () => {
-    showImagePickerOptions(
-      (imageFile) => {
-        console.log('📸 Selected image file:', imageFile);
-        setNewItem({ ...newItem, image: imageFile });
-      },
-      {
-        allowsEditing: true,
-        aspect: [4, 3],
-        quality: 0.8,
-      },
-      'camera'
-    );
+    setShowPickerOptions(true);
+  };
+
+  const launchImageSource = async (source) => {
+    setShowPickerOptions(false);
+    const image = await safeImagePicker({ allowsEditing: true, aspect: [4, 3], quality: 0.8 }, source);
+    if (image) {
+      console.log('📸 Selected image file:', image);
+      setNewItem(prev => ({ ...prev, image }));
+    }
   };
 
   const FoodItemCard = ({ item }) => {
@@ -1311,6 +1309,49 @@ const FoodItemsManagement = () => {
               </View>
             </View>
           </ScrollView>
+
+          {/* Image Source Picker — rendered inside modal to avoid iOS double-modal issue */}
+          {showPickerOptions && (
+            <TouchableOpacity
+              style={styles.pickerOverlay}
+              activeOpacity={1}
+              onPress={() => setShowPickerOptions(false)}
+            >
+              <View style={styles.pickerSheet}>
+                <View style={styles.pickerHandle} />
+                <Text style={styles.pickerTitle}>Select Photo</Text>
+                <TouchableOpacity
+                  style={styles.pickerOption}
+                  onPress={() => launchImageSource('camera')}
+                  activeOpacity={0.7}
+                >
+                  <View style={styles.pickerOptionIcon}>
+                    <Ionicons name="camera" size={22} color="#020A66" />
+                  </View>
+                  <Text style={styles.pickerOptionText}>Take Photo</Text>
+                  <Ionicons name="chevron-forward" size={18} color="#9CA3AF" />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.pickerOption}
+                  onPress={() => launchImageSource('library')}
+                  activeOpacity={0.7}
+                >
+                  <View style={styles.pickerOptionIcon}>
+                    <Ionicons name="images" size={22} color="#020A66" />
+                  </View>
+                  <Text style={styles.pickerOptionText}>Choose from Gallery</Text>
+                  <Ionicons name="chevron-forward" size={18} color="#9CA3AF" />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.pickerCancelBtn}
+                  onPress={() => setShowPickerOptions(false)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.pickerCancelText}>Cancel</Text>
+                </TouchableOpacity>
+              </View>
+            </TouchableOpacity>
+          )}
         </SafeAreaView>
       </Modal>
 
@@ -1563,6 +1604,49 @@ const FoodItemsManagement = () => {
               />
             </View>
           </ScrollView>
+
+          {/* Image Source Picker — rendered inside modal to avoid iOS double-modal issue */}
+          {showPickerOptions && (
+            <TouchableOpacity
+              style={styles.pickerOverlay}
+              activeOpacity={1}
+              onPress={() => setShowPickerOptions(false)}
+            >
+              <View style={styles.pickerSheet}>
+                <View style={styles.pickerHandle} />
+                <Text style={styles.pickerTitle}>Select Photo</Text>
+                <TouchableOpacity
+                  style={styles.pickerOption}
+                  onPress={() => launchImageSource('camera')}
+                  activeOpacity={0.7}
+                >
+                  <View style={styles.pickerOptionIcon}>
+                    <Ionicons name="camera" size={22} color="#020A66" />
+                  </View>
+                  <Text style={styles.pickerOptionText}>Take Photo</Text>
+                  <Ionicons name="chevron-forward" size={18} color="#9CA3AF" />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.pickerOption}
+                  onPress={() => launchImageSource('library')}
+                  activeOpacity={0.7}
+                >
+                  <View style={styles.pickerOptionIcon}>
+                    <Ionicons name="images" size={22} color="#020A66" />
+                  </View>
+                  <Text style={styles.pickerOptionText}>Choose from Gallery</Text>
+                  <Ionicons name="chevron-forward" size={18} color="#9CA3AF" />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.pickerCancelBtn}
+                  onPress={() => setShowPickerOptions(false)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.pickerCancelText}>Cancel</Text>
+                </TouchableOpacity>
+              </View>
+            </TouchableOpacity>
+          )}
         </SafeAreaView>
       </Modal>
 
@@ -1927,6 +2011,71 @@ const styles = StyleSheet.create({
   placeholderText: {
     fontSize: 10,
     fontFamily: 'MyFont-Medium',
+    color: '#6B7280',
+  },
+
+  // Image source picker sheet (inside modal — avoids iOS double-modal issue)
+  pickerOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    justifyContent: 'flex-end',
+    zIndex: 999,
+  },
+  pickerSheet: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingHorizontal: 20,
+    paddingBottom: 34,
+    paddingTop: 12,
+  },
+  pickerHandle: {
+    width: 40,
+    height: 4,
+    backgroundColor: '#D1D5DB',
+    borderRadius: 2,
+    alignSelf: 'center',
+    marginBottom: 16,
+  },
+  pickerTitle: {
+    fontSize: 16,
+    fontFamily: 'MyFont-Bold',
+    color: '#1F2937',
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+  pickerOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+  },
+  pickerOptionIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    backgroundColor: '#EEF2FF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 14,
+  },
+  pickerOptionText: {
+    flex: 1,
+    fontSize: 15,
+    fontFamily: 'MyFont-Medium',
+    color: '#1F2937',
+  },
+  pickerCancelBtn: {
+    marginTop: 12,
+    paddingVertical: 14,
+    alignItems: 'center',
+    backgroundColor: '#F3F4F6',
+    borderRadius: 12,
+  },
+  pickerCancelText: {
+    fontSize: 15,
+    fontFamily: 'MyFont-SemiBold',
     color: '#6B7280',
   },
 });

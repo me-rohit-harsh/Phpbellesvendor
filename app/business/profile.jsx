@@ -17,20 +17,72 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import CustomAlert from '../components/CustomAlert';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import * as ImagePicker from 'expo-image-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getCompleteProfile, updateCompleteProfile, getFoodTypes, getVendorTypes } from '../../lib/api/vendor';
 import { logout } from '../../lib/api/auth';
-import { showImagePickerOptions } from '../../lib/utils/permissions';
+import { safeImagePicker } from '../../lib/utils/permissions';
 import * as Location from 'expo-location';
 import DateTimePicker from '@react-native-community/datetimepicker';
 
+
+// Defined at module level so React always sees the same component type.
+// Defining it inside ProfileManagement (even with useCallback) causes React
+// to unmount/remount the TextInput on every render, producing multi-character
+// type/delete bugs.
+const InputField = React.memo(({ label, value, onChangeText, placeholder, keyboardType = 'default', multiline = false, isEditing }) => (
+  <View style={inputFieldStyles.inputGroup}>
+    <Text style={inputFieldStyles.inputLabel}>{label}</Text>
+    <TextInput
+      style={[inputFieldStyles.input, multiline && inputFieldStyles.textArea]}
+      value={value ?? ''}
+      onChangeText={onChangeText}
+      placeholder={placeholder}
+      editable={isEditing}
+      keyboardType={keyboardType}
+      multiline={multiline}
+      numberOfLines={multiline ? 3 : 1}
+      autoCapitalize={multiline ? 'sentences' : 'words'}
+      autoCorrect={false}
+      placeholderTextColor="#9CA3AF"
+      returnKeyType={multiline ? 'default' : 'done'}
+    />
+  </View>
+));
+
+const inputFieldStyles = StyleSheet.create({
+  inputGroup: {
+    marginBottom: 16,
+  },
+  inputLabel: {
+    fontSize: 14,
+    fontFamily: 'MyFont-Medium',
+    color: '#374151',
+    marginBottom: 8,
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 16,
+    fontFamily: 'MyFont-Regular',
+    color: '#1F2937',
+    backgroundColor: '#FFFFFF',
+  },
+  textArea: {
+    height: 80,
+    textAlignVertical: 'top',
+  },
+});
 
 const ProfileManagement = () => {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   
   const [showAlert, setShowAlert] = useState(false);
+  const [showPickerOptions, setShowPickerOptions] = useState(false);
+  const [pickerType, setPickerType] = useState('profile'); // 'profile' or 'banner'
   const [alertConfig, setAlertConfig] = useState({
     title: '',
     message: '',
@@ -270,31 +322,28 @@ const ProfileManagement = () => {
   };
 
   const pickImage = useCallback((type) => {
-    showImagePickerOptions(
-      (imageFile) => {
-        console.log('Image selected:', imageFile);
-        
-        // Create proper file object for FormData
-        const fileObj = {
-          uri: imageFile.uri,
-          type: imageFile.type || 'image/jpeg',
-          name: imageFile.name || `${type}_${Date.now()}.jpg`,
-        };
-        
-        setProfileData(prev => ({
-          ...prev,
-          [type === 'profile' ? 'profile_photo' : 'banner_image']: fileObj,
-          [type === 'profile' ? 'profile_photo_uri' : 'banner_image_uri']: imageFile.uri
-        }));
-      },
-      {
-        allowsEditing: true,
-        aspect: type === 'profile' ? [1, 1] : [16, 9],
-        quality: 0.8,
-      },
-      'camera' // Force camera only for profile and banner images
-    );
+    setPickerType(type);
+    setShowPickerOptions(true);
   }, []);
+
+  const launchImageSource = useCallback(async (source) => {
+    setShowPickerOptions(false);
+    const aspect = pickerType === 'profile' ? [1, 1] : [16, 9];
+    const imageFile = await safeImagePicker({ allowsEditing: true, aspect, quality: 0.8 }, source);
+    if (imageFile) {
+      console.log('Image selected:', imageFile);
+      const fileObj = {
+        uri: imageFile.uri,
+        type: imageFile.type || 'image/jpeg',
+        name: imageFile.name || `${pickerType}_${Date.now()}.jpg`,
+      };
+      setProfileData(prev => ({
+        ...prev,
+        [pickerType === 'profile' ? 'profile_photo' : 'banner_image']: fileObj,
+        [pickerType === 'profile' ? 'profile_photo_uri' : 'banner_image_uri']: imageFile.uri,
+      }));
+    }
+  }, [pickerType]);
 
   const getCurrentLocation = async () => {
     try {
@@ -333,26 +382,6 @@ const ProfileManagement = () => {
     </View>
   );
 
-  const InputField = useCallback(({ label, value, onChangeText, placeholder, keyboardType = 'default', multiline = false }) => (
-    <View style={styles.inputGroup}>
-      <Text style={styles.inputLabel}>{label}</Text>
-      <TextInput
-        style={[styles.input, multiline && styles.textArea]}
-        value={value ?? ''}
-        onChangeText={onChangeText}
-        placeholder={placeholder}
-        editable={isEditing}
-        keyboardType={keyboardType}
-        multiline={multiline}
-        numberOfLines={multiline ? 3 : 1}
-        autoCapitalize={multiline ? 'sentences' : 'words'}
-        autoCorrect={false}
-        placeholderTextColor="#9CA3AF"
-        blurOnSubmit={!multiline}
-        returnKeyType={multiline ? 'default' : 'done'}
-      />
-    </View>
-  ), [isEditing]);
 
   const SwitchField = ({ label, value, onValueChange }) => (
     <View style={styles.switchGroup}>
@@ -533,6 +562,7 @@ const ProfileManagement = () => {
             placeholder="Enter restaurant name"
             keyboardType="default"
             multiline={false}
+            isEditing={isEditing}
           />
           <InputField
             label="Owner Name"
@@ -541,6 +571,7 @@ const ProfileManagement = () => {
             placeholder="Enter owner name"
             keyboardType="default"
             multiline={false}
+            isEditing={isEditing}
           />
           <InputField
             label="Email"
@@ -548,6 +579,7 @@ const ProfileManagement = () => {
             onChangeText={(text) => setProfileData(prev => ({ ...prev, email: text }))}
             placeholder="Enter email address"
             keyboardType="email-address"
+            isEditing={isEditing}
           />
           <InputField
             label="Phone"
@@ -555,6 +587,7 @@ const ProfileManagement = () => {
             onChangeText={(text) => setProfileData(prev => ({ ...prev, phone: text }))}
             placeholder="Enter phone number"
             keyboardType="phone-pad"
+            isEditing={isEditing}
           />
           <InputField
             label="Address"
@@ -562,6 +595,7 @@ const ProfileManagement = () => {
             onChangeText={(text) => setProfileData(prev => ({ ...prev, address: text }))}
             placeholder="Enter business address"
             multiline
+            isEditing={isEditing}
           />
           <InputField
             label="Description"
@@ -569,6 +603,7 @@ const ProfileManagement = () => {
             onChangeText={(text) => setProfileData(prev => ({ ...prev, description: text }))}
             placeholder="Describe your business"
             multiline
+            isEditing={isEditing}
           />
         </ProfileSection>
 
@@ -580,24 +615,28 @@ const ProfileManagement = () => {
             onChangeText={(text) => setProfileData(prev => ({ ...prev, address: text }))}
             placeholder="Enter complete business address"
             multiline
+            isEditing={isEditing}
           />
           <InputField
             label="House / Building Number"
             value={profileData.house_number}
             onChangeText={(text) => setProfileData(prev => ({ ...prev, house_number: text }))}
             placeholder="e.g., 123, Building A"
+            isEditing={isEditing}
           />
           <InputField
             label="Floor / Unit"
             value={profileData.floor}
             onChangeText={(text) => setProfileData(prev => ({ ...prev, floor: text }))}
             placeholder="e.g., Ground Floor, Unit 5"
+            isEditing={isEditing}
           />
           <InputField
             label="Landmark (Optional)"
             value={profileData.landmark}
             onChangeText={(text) => setProfileData(prev => ({ ...prev, landmark: text }))}
             placeholder="e.g., Near City Center, Opposite Park"
+            isEditing={isEditing}
           />
           <InputField
             label="Additional Instructions (Optional)"
@@ -605,6 +644,7 @@ const ProfileManagement = () => {
             onChangeText={(text) => setProfileData(prev => ({ ...prev, additional_instructions: text }))}
             placeholder="e.g., Use side entrance, Ring bell twice"
             multiline
+            isEditing={isEditing}
           />
           <View style={styles.timeRow}>
             <View style={styles.timeField}>
@@ -614,6 +654,7 @@ const ProfileManagement = () => {
                 onChangeText={(text) => setProfileData(prev => ({ ...prev, pincode: text }))}
                 placeholder="000000"
                 keyboardType="numeric"
+                isEditing={isEditing}
               />
             </View>
             <View style={styles.timeField}>
@@ -622,6 +663,7 @@ const ProfileManagement = () => {
                 value={profileData.city}
                 onChangeText={(text) => setProfileData(prev => ({ ...prev, city: text }))}
                 placeholder="Enter city"
+                isEditing={isEditing}
               />
             </View>
           </View>
@@ -630,6 +672,7 @@ const ProfileManagement = () => {
             value={profileData.state}
             onChangeText={(text) => setProfileData(prev => ({ ...prev, state: text }))}
             placeholder="Enter state"
+            isEditing={isEditing}
           />
           <TouchableOpacity style={styles.primaryButton} onPress={getCurrentLocation}>
             <Ionicons name="locate" size={20} color="#FFFFFF" />
@@ -962,6 +1005,49 @@ const ProfileManagement = () => {
             />
           )}
         </>
+      )}
+
+      {/* Image Source Picker Sheet */}
+      {showPickerOptions && (
+        <TouchableOpacity
+          style={styles.pickerOverlay}
+          activeOpacity={1}
+          onPress={() => setShowPickerOptions(false)}
+        >
+          <View style={styles.pickerSheet}>
+            <View style={styles.pickerHandle} />
+            <Text style={styles.pickerTitle}>Select Photo</Text>
+            <TouchableOpacity
+              style={styles.pickerOption}
+              onPress={() => launchImageSource('camera')}
+              activeOpacity={0.7}
+            >
+              <View style={styles.pickerOptionIcon}>
+                <Ionicons name="camera" size={22} color="#020A66" />
+              </View>
+              <Text style={styles.pickerOptionText}>Take Photo</Text>
+              <Ionicons name="chevron-forward" size={18} color="#9CA3AF" />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.pickerOption}
+              onPress={() => launchImageSource('library')}
+              activeOpacity={0.7}
+            >
+              <View style={styles.pickerOptionIcon}>
+                <Ionicons name="images" size={22} color="#020A66" />
+              </View>
+              <Text style={styles.pickerOptionText}>Choose from Gallery</Text>
+              <Ionicons name="chevron-forward" size={18} color="#9CA3AF" />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.pickerCancelBtn}
+              onPress={() => setShowPickerOptions(false)}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.pickerCancelText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
       )}
 
       <CustomAlert
@@ -1313,6 +1399,71 @@ const styles = StyleSheet.create({
   },
   iosTimePicker: {
     backgroundColor: '#FFFFFF',
+  },
+
+  // Image source picker sheet
+  pickerOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    justifyContent: 'flex-end',
+    zIndex: 999,
+  },
+  pickerSheet: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingHorizontal: 20,
+    paddingBottom: 34,
+    paddingTop: 12,
+  },
+  pickerHandle: {
+    width: 40,
+    height: 4,
+    backgroundColor: '#D1D5DB',
+    borderRadius: 2,
+    alignSelf: 'center',
+    marginBottom: 16,
+  },
+  pickerTitle: {
+    fontSize: 16,
+    fontFamily: 'MyFont-Bold',
+    color: '#1F2937',
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+  pickerOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+  },
+  pickerOptionIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    backgroundColor: '#EEF2FF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 14,
+  },
+  pickerOptionText: {
+    flex: 1,
+    fontSize: 15,
+    fontFamily: 'MyFont-Medium',
+    color: '#1F2937',
+  },
+  pickerCancelBtn: {
+    marginTop: 12,
+    paddingVertical: 14,
+    alignItems: 'center',
+    backgroundColor: '#F3F4F6',
+    borderRadius: 12,
+  },
+  pickerCancelText: {
+    fontSize: 15,
+    fontFamily: 'MyFont-SemiBold',
+    color: '#6B7280',
   },
 });
 

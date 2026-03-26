@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { Platform } from 'react-native';
+import { Platform, Alert } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 // Intent launcher imported dynamically only on Android 13+ to avoid web/native shims issues
 
@@ -86,7 +86,7 @@ export default function useImagePicker() {
         return { canceled: true };
       } else {
         const result = await ImagePicker.launchImageLibraryAsync({
-          mediaTypes: ImagePicker.MediaTypeOptions.Images,
+          mediaTypes: ['images'],
           allowsEditing: false,
           quality: 1,
           selectionLimit: 1,
